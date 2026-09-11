@@ -113,6 +113,8 @@ fun CompareScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                     ChartBar(height = 140.dp, color = ChartCyan, modifier = Modifier.weight(1f))
                 }
             }
+
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }

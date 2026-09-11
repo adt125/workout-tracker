@@ -59,6 +59,20 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                 .padding(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Header with Back Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDone, modifier = Modifier.offset(x = (-8).dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+            }
+
             // Tab Bar
             Row(
                 modifier = Modifier
@@ -232,6 +246,8 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
             ) {
                 Text("Add exercise", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
+
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }

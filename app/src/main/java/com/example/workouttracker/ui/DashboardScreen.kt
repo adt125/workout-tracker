@@ -211,7 +211,7 @@ fun DashboardScreen(viewModel: AppViewModel, onNavigateAddWorkout: () -> Unit, o
                 QuickAddButton(text = "Workout", icon = "🏋️") { onNavigateAddWorkout() }
             }
             
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(72.dp))
         }
     }
 }
