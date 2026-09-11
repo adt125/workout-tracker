@@ -13,9 +13,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = AccentPurple,
+    secondary = AccentGreen,
+    tertiary = ChartPurple,
+    background = AppBackground,
+    surface = AppSurface,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary,
+    onSurfaceVariant = TextSecondary,
+    outline = MutedText.copy(alpha = 0.3f)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -35,7 +44,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun WorkoutTrackerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     // Disable dynamic color to match Figma exactly
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit

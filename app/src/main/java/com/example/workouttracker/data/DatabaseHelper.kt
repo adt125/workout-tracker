@@ -5,168 +5,317 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
     companion object {
         private const val DATABASE_NAME = "workout_db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 5
 
-        private const val TABLE_WEIGHT = "weight_entries"
-        private const val TABLE_WATER = "water_entries"
-        private const val TABLE_WORKOUT = "workout_entries"
+        private const val TABLE_EXERCISES = "exercises"
+        private const val TABLE_HEALTH_METRICS = "health_metrics"
+        private const val TABLE_WORKOUT_SESSIONS = "workout_sessions"
+        private const val TABLE_WORKOUT_ENTRIES = "workout_entries"
+        private const val TABLE_WORKOUT_SETS = "workout_sets"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
+        // 1. Exercises table
         db.execSQL("""
-            CREATE TABLE $TABLE_WEIGHT (
+            CREATE TABLE $TABLE_EXERCISES (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL,
-                weightKg REAL NOT NULL
+                name TEXT NOT NULL UNIQUE
             )
         """.trimIndent())
 
+        // 2. Health Metrics table
         db.execSQL("""
-            CREATE TABLE $TABLE_WATER (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT NOT NULL,
-                amountMl INTEGER NOT NULL
+            CREATE TABLE $TABLE_HEALTH_METRICS (
+                date TEXT PRIMARY KEY,
+                water REAL DEFAULT 0,
+                protein REAL DEFAULT 0,
+                body_weight REAL DEFAULT 0
             )
         """.trimIndent())
 
+        // 3. Workout Sessions table
         db.execSQL("""
-            CREATE TABLE $TABLE_WORKOUT (
+            CREATE TABLE $TABLE_WORKOUT_SESSIONS (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
-                exerciseName TEXT NOT NULL,
-                sets INTEGER,
-                reps INTEGER,
-                weightKg REAL,
-                durationMin INTEGER,
-                distanceKm REAL,
-                avgSpeed REAL,
-                incline REAL,
+                start_time TEXT,
                 notes TEXT
             )
         """.trimIndent())
+        db.execSQL("CREATE INDEX idx_sessions_date ON $TABLE_WORKOUT_SESSIONS(date)")
+
+        // 4. Workout Entries table (links session to exercise)
+        db.execSQL("""
+            CREATE TABLE $TABLE_WORKOUT_ENTRIES (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                exercise_id INTEGER,
+                FOREIGN KEY(session_id) REFERENCES $TABLE_WORKOUT_SESSIONS(id) ON DELETE CASCADE,
+                FOREIGN KEY(exercise_id) REFERENCES $TABLE_EXERCISES(id)
+            )
+        """.trimIndent())
+
+        // 5. Workout Sets table (the actual lifting/cardio data)
+        db.execSQL("""
+            CREATE TABLE $TABLE_WORKOUT_SETS (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_id INTEGER NOT NULL,
+                weight REAL,
+                reps INTEGER,
+                duration INTEGER,
+                set_order INTEGER NOT NULL,
+                FOREIGN KEY(entry_id) REFERENCES $TABLE_WORKOUT_ENTRIES(id) ON DELETE CASCADE
+            )
+        """.trimIndent())
+        
+        // Add some default exercises
+        db.execSQL("INSERT INTO $TABLE_EXERCISES (name) VALUES ('Incline bench press')")
+        db.execSQL("INSERT INTO $TABLE_EXERCISES (name) VALUES ('Flat bench press')")
+        db.execSQL("INSERT INTO $TABLE_EXERCISES (name) VALUES ('Incline walk')")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 2) {
-            db.execSQL("ALTER TABLE $TABLE_WORKOUT ADD COLUMN distanceKm REAL")
-            db.execSQL("ALTER TABLE $TABLE_WORKOUT ADD COLUMN avgSpeed REAL")
-            db.execSQL("ALTER TABLE $TABLE_WORKOUT ADD COLUMN incline REAL")
+        resetDatabase(db)
+    }
+
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        resetDatabase(db)
+    }
+
+    private fun resetDatabase(db: SQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_EXERCISES")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_HEALTH_METRICS")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_WORKOUT_SESSIONS")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_WORKOUT_ENTRIES")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_WORKOUT_SETS")
+        onCreate(db)
+    }
+
+    // --- Exercise methods ---
+    fun getOrCreateExerciseId(name: String): Int {
+        val db = writableDatabase
+        val cursor = db.query(TABLE_EXERCISES, arrayOf("id"), "name = ?", arrayOf(name), null, null, null)
+        return if (cursor.moveToFirst()) {
+            val id = cursor.getInt(0)
+            cursor.close()
+            id
+        } else {
+            cursor.close()
+            val cv = ContentValues().apply { put("name", name) }
+            db.insert(TABLE_EXERCISES, null, cv).toInt()
         }
     }
 
-    // Weight methods
-    fun insertWeight(entry: WeightEntry): Long {
-        val cv = ContentValues().apply {
-            put("date", entry.date)
-            put("weightKg", entry.weightKg)
-        }
-        return writableDatabase.insert(TABLE_WEIGHT, null, cv)
-    }
-
-    fun getWeightForDate(date: String): List<WeightEntry> {
-        val list = mutableListOf<WeightEntry>()
-        val cursor: Cursor = readableDatabase.query(TABLE_WEIGHT, arrayOf("id", "date", "weightKg"), "date = ?", arrayOf(date), null, null, "id DESC")
+    fun getAllExercises(): List<Exercise> {
+        val list = mutableListOf<Exercise>()
+        val cursor = readableDatabase.query(TABLE_EXERCISES, arrayOf("id", "name"), null, null, null, null, "name ASC")
         cursor.use {
             while (it.moveToNext()) {
-                list.add(WeightEntry(it.getLong(0), it.getString(1), it.getDouble(2).toFloat()))
+                list.add(Exercise(it.getInt(0), it.getString(1)))
             }
         }
         return list
     }
 
-    fun avgWeightBetween(from: String, to: String): Double? {
-        val cursor = readableDatabase.rawQuery("SELECT AVG(weightKg) FROM $TABLE_WEIGHT WHERE date BETWEEN ? AND ?", arrayOf(from, to))
-        cursor.use {
-            if (it.moveToFirst()) return if (!it.isNull(0)) it.getDouble(0) else null
-        }
-        return null
-    }
-
-    // Water methods
-    fun insertWater(entry: WaterEntry): Long {
-        val cv = ContentValues().apply {
-            put("date", entry.date)
-            put("amountMl", entry.amountMl)
-        }
-        return writableDatabase.insert(TABLE_WATER, null, cv)
-    }
-
-    fun totalWaterForDate(date: String): Int {
-        val cursor = readableDatabase.rawQuery("SELECT SUM(amountMl) FROM $TABLE_WATER WHERE date = ?", arrayOf(date))
-        cursor.use {
-            if (it.moveToFirst()) return it.getInt(0)
-        }
-        return 0
-    }
-
-    fun totalWaterBetween(from: String, to: String): Int {
-        val cursor = readableDatabase.rawQuery("SELECT SUM(amountMl) FROM $TABLE_WATER WHERE date BETWEEN ? AND ?", arrayOf(from, to))
-        cursor.use {
-            if (it.moveToFirst()) return it.getInt(0)
-        }
-        return 0
-    }
-
-    // Workout methods
-    fun insertWorkout(entry: WorkoutEntry): Long {
-        val cv = ContentValues().apply {
-            put("date", entry.date)
-            put("exerciseName", entry.exerciseName)
-            put("sets", entry.sets)
-            put("reps", entry.reps)
-            put("weightKg", entry.weightKg)
-            put("durationMin", entry.durationMin)
-            put("distanceKm", entry.distanceKm)
-            put("avgSpeed", entry.avgSpeed)
-            put("incline", entry.incline)
-            put("notes", entry.notes)
-        }
-        return writableDatabase.insert(TABLE_WORKOUT, null, cv)
-    }
-
-    fun getAllExerciseNames(): List<String> {
-        val list = mutableListOf<String>()
-        val cursor = readableDatabase.rawQuery("SELECT DISTINCT exerciseName FROM $TABLE_WORKOUT ORDER BY exerciseName ASC", null)
-        cursor.use {
-            while (it.moveToNext()) {
-                list.add(it.getString(0))
+    // --- Session methods ---
+    fun getOrCreateSessionId(date: String): Long {
+        val db = writableDatabase
+        val cursor = db.query(TABLE_WORKOUT_SESSIONS, arrayOf("id"), "date = ?", arrayOf(date), null, null, null)
+        return if (cursor.moveToFirst()) {
+            val id = cursor.getLong(0)
+            cursor.close()
+            id
+        } else {
+            cursor.close()
+            val cv = ContentValues().apply {
+                put("date", date)
             }
+            db.insert(TABLE_WORKOUT_SESSIONS, null, cv)
         }
-        return list
     }
 
-    fun countWorkoutsBetween(from: String, to: String): Int {
-        val cursor = readableDatabase.rawQuery("SELECT COUNT(*) FROM $TABLE_WORKOUT WHERE date BETWEEN ? AND ?", arrayOf(from, to))
-        cursor.use {
-            if (it.moveToFirst()) return it.getInt(0)
+    // --- Entry & Set methods ---
+    fun insertWorkout(sessionId: Long, exerciseId: Int, sets: List<SetRecord>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val entryCv = ContentValues().apply {
+                put("session_id", sessionId)
+                put("exercise_id", exerciseId)
+            }
+            val entryId = db.insert(TABLE_WORKOUT_ENTRIES, null, entryCv)
+
+            sets.forEachIndexed { index, set ->
+                val setCv = ContentValues().apply {
+                    put("entry_id", entryId)
+                    put("weight", set.weight)
+                    put("reps", set.reps)
+                    put("duration", set.duration)
+                    put("set_order", index)
+                }
+                db.insert(TABLE_WORKOUT_SETS, null, setCv)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
-        return 0
     }
 
-    fun getWorkoutsForDate(date: String): List<WorkoutEntry> {
-        val list = mutableListOf<WorkoutEntry>()
-        val cursor = readableDatabase.query(TABLE_WORKOUT, arrayOf("id", "date", "exerciseName", "sets", "reps", "weightKg", "durationMin", "distanceKm", "avgSpeed", "incline", "notes"), "date = ?", arrayOf(date), null, null, null)
+    fun getWorkoutsForDate(date: String): List<Pair<WorkoutEntry, String>> {
+        val list = mutableListOf<Pair<WorkoutEntry, String>>()
+        val query = """
+            SELECT e.id as entry_id, e.session_id, ex.id as ex_id, ex.name, s.date 
+            FROM $TABLE_WORKOUT_ENTRIES e
+            JOIN $TABLE_WORKOUT_SESSIONS s ON e.session_id = s.id
+            JOIN $TABLE_EXERCISES ex ON e.exercise_id = ex.id
+            WHERE s.date = ?
+        """.trimIndent()
+        
+        val cursor = readableDatabase.rawQuery(query, arrayOf(date))
         cursor.use {
             while (it.moveToNext()) {
-                list.add(
-                    WorkoutEntry(
-                        id = it.getLong(0),
-                        date = it.getString(1),
-                        exerciseName = it.getString(2),
-                        sets = if (it.isNull(3)) null else it.getInt(3),
-                        reps = if (it.isNull(4)) null else it.getInt(4),
-                        weightKg = if (it.isNull(5)) null else it.getDouble(5).toFloat(),
-                        durationMin = if (it.isNull(6)) null else it.getInt(6),
-                        distanceKm = if (it.isNull(7)) null else it.getFloat(7),
-                        avgSpeed = if (it.isNull(8)) null else it.getFloat(8),
-                        incline = if (it.isNull(9)) null else it.getFloat(9),
-                        notes = if (it.isNull(10)) null else it.getString(10)
-                    )
+                val entryId = it.getLong(it.getColumnIndexOrThrow("entry_id"))
+                val entry = WorkoutEntry(
+                    id = entryId,
+                    sessionId = it.getLong(it.getColumnIndexOrThrow("session_id")),
+                    exerciseId = it.getInt(it.getColumnIndexOrThrow("ex_id")),
+                    exerciseName = it.getString(it.getColumnIndexOrThrow("name")),
+                    date = it.getString(it.getColumnIndexOrThrow("date")),
+                    sets = getSetsForEntry(entryId)
                 )
+                list.add(entry to entry.exerciseName)
+            }
+        }
+        return list
+    }
+
+    fun getSetsForEntry(entryId: Long): List<SetRecord> {
+        val list = mutableListOf<SetRecord>()
+        val cursor = readableDatabase.query(
+            TABLE_WORKOUT_SETS,
+            arrayOf("weight", "reps", "duration"),
+            "entry_id = ?",
+            arrayOf(entryId.toString()),
+            null, null, "set_order ASC"
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(SetRecord(
+                    weight = if (it.isNull(0)) null else it.getFloat(0),
+                    reps = if (it.isNull(1)) null else it.getInt(1),
+                    duration = if (it.isNull(2)) null else it.getInt(2)
+                ))
+            }
+        }
+        return list
+    }
+
+    fun getDailyMetrics(date: String): HealthMetric {
+        val cursor = readableDatabase.query(
+            TABLE_HEALTH_METRICS,
+            arrayOf("water", "protein", "body_weight"),
+            "date = ?",
+            arrayOf(date),
+            null, null, null
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                return HealthMetric(
+                    date = date,
+                    water = it.getFloat(0),
+                    protein = it.getFloat(1),
+                    bodyWeight = it.getFloat(2)
+                )
+            }
+        }
+        return HealthMetric(date)
+    }
+
+    fun updateHealthMetrics(metric: HealthMetric) {
+        val db = writableDatabase
+        val cv = ContentValues().apply {
+            put("date", metric.date)
+            put("water", metric.water)
+            put("protein", metric.protein)
+            put("body_weight", metric.bodyWeight)
+        }
+        db.insertWithOnConflict(TABLE_HEALTH_METRICS, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun getWorkoutsBetween(from: String, to: String): List<Pair<WorkoutEntry, String>> {
+        val list = mutableListOf<Pair<WorkoutEntry, String>>()
+        val query = """
+            SELECT e.id as entry_id, e.session_id, ex.id as ex_id, ex.name, s.date
+            FROM $TABLE_WORKOUT_ENTRIES e
+            JOIN $TABLE_WORKOUT_SESSIONS s ON e.session_id = s.id
+            JOIN $TABLE_EXERCISES ex ON e.exercise_id = ex.id
+            WHERE s.date BETWEEN ? AND ?
+            ORDER BY s.date DESC, e.id DESC
+        """.trimIndent()
+        
+        val cursor = readableDatabase.rawQuery(query, arrayOf(from, to))
+        cursor.use {
+            while (it.moveToNext()) {
+                val entryId = it.getLong(it.getColumnIndexOrThrow("entry_id"))
+                val entry = WorkoutEntry(
+                    id = entryId,
+                    sessionId = it.getLong(it.getColumnIndexOrThrow("session_id")),
+                    exerciseId = it.getInt(it.getColumnIndexOrThrow("ex_id")),
+                    exerciseName = it.getString(it.getColumnIndexOrThrow("name")),
+                    date = it.getString(it.getColumnIndexOrThrow("date")),
+                    sets = getSetsForEntry(entryId)
+                )
+                list.add(entry to entry.exerciseName)
+            }
+        }
+        return list
+    }
+
+    fun getLatestSetDataForExercise(exerciseId: Int, beforeDate: String): List<SetRecord> {
+        val query = """
+            SELECT e.id FROM $TABLE_WORKOUT_ENTRIES e
+            JOIN $TABLE_WORKOUT_SESSIONS s ON e.session_id = s.id
+            WHERE e.exercise_id = ? AND s.date < ?
+            ORDER BY s.date DESC, e.id DESC LIMIT 1
+        """.trimIndent()
+        
+        val cursor = readableDatabase.rawQuery(query, arrayOf(exerciseId.toString(), beforeDate))
+        val entryId = if (cursor.moveToFirst()) cursor.getLong(0) else -1L
+        cursor.close()
+        
+        return if (entryId != -1L) getSetsForEntry(entryId) else emptyList()
+    }
+
+    fun getRecentWorkouts(limit: Int): List<Pair<WorkoutEntry, String>> {
+        val list = mutableListOf<Pair<WorkoutEntry, String>>()
+        val query = """
+            SELECT e.id as entry_id, e.session_id, ex.id as ex_id, ex.name, s.date
+            FROM $TABLE_WORKOUT_ENTRIES e
+            JOIN $TABLE_WORKOUT_SESSIONS s ON e.session_id = s.id
+            JOIN $TABLE_EXERCISES ex ON e.exercise_id = ex.id
+            ORDER BY s.date DESC, e.id DESC
+            LIMIT ?
+        """.trimIndent()
+        
+        val cursor = readableDatabase.rawQuery(query, arrayOf(limit.toString()))
+        cursor.use {
+            while (it.moveToNext()) {
+                val entryId = it.getLong(it.getColumnIndexOrThrow("entry_id"))
+                val entry = WorkoutEntry(
+                    id = entryId,
+                    sessionId = it.getLong(it.getColumnIndexOrThrow("session_id")),
+                    exerciseId = it.getInt(it.getColumnIndexOrThrow("ex_id")),
+                    exerciseName = it.getString(it.getColumnIndexOrThrow("name")),
+                    date = it.getString(it.getColumnIndexOrThrow("date")),
+                    sets = getSetsForEntry(entryId)
+                )
+                list.add(entry to entry.exerciseName)
             }
         }
         return list

@@ -10,14 +10,22 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-// App-specific dark theme accents
+// App-specific dark theme colors (updated from Figma)
 val AppBackground = Color(0xFF0E0E0F)
-val CardBackground = Color(0xFF141414)
-val SubCard = Color(0xFF1A1A1A)
-val AccentGreen = Color(0xFF1BB954)
-val AccentBlue = Color(0xFF2E7BFF)
-val MutedText = Color(0xFF9A9A9A)
+val AppSurface = Color(0xFF14141A)
+val CardBackground = Color(0xFF1C1C21)
+val InputBackground = Color(0xFF15151A)
+val AccentPurple = Color(0xFF8078DE)
+val AccentGreen = Color(0xFF297833)
+val AccentBlue = Color(0xFF4A90E2)
+val TextPrimary = Color(0xFFFFFFFF)
+val TextSecondary = Color(0xFF99999E)
+val MutedText = Color(0xFF66666B)
+
 val ChartPurple = Color(0xFF9887FF)
+val ChartCyan = Color(0xFF70E1F5)
+val SuccessBanner = Color(0xFF16261E)
+val SuccessBorder = Color(0xFF297833)
 
 // Figma Light Theme Colors
 val FigmaBackground = Color(0xFFF5F5F7)

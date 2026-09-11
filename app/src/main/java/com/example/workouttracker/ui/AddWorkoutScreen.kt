@@ -1,6 +1,8 @@
 package com.example.workouttracker.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
 
@@ -40,30 +43,29 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
 
     val sets = remember {
         mutableStateListOf(
-            WorkoutSetState(1, mutableStateOf("0"), mutableStateOf("0")),
-            WorkoutSetState(2, mutableStateOf("0"), mutableStateOf("0")),
-            WorkoutSetState(3, mutableStateOf("0"), mutableStateOf("0"))
+            WorkoutSetState(1, mutableStateOf(""), mutableStateOf("")),
+            WorkoutSetState(2, mutableStateOf(""), mutableStateOf("")),
+            WorkoutSetState(3, mutableStateOf(""), mutableStateOf(""))
         )
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(FigmaSurface)
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 18.dp)
+                .padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Tab Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(FigmaBackground)
-                    .padding(3.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CardBackground)
+                    .padding(4.dp)
             ) {
                 TabItem(
                     text = "Weights",
@@ -77,50 +79,51 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                 ) { selectedTab = "Cardio" }
             }
 
-            Text("Exercise", color = FigmaMutedText, fontSize = 11.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("EXERCISE", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
 
-            // Exercise Input with Dropdown
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(FigmaBackground)
-                        .border(1.dp, if (isDropdownVisible) FigmaAccent else Color(0xFFE0E0E3), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp, vertical = 9.dp)
-                ) {
-                    BasicTextField(
-                        value = exerciseName,
-                        onValueChange = {
-                            exerciseName = it
-                            isDropdownVisible = it.isNotEmpty()
-                        },
-                        textStyle = LocalTextStyle.current.copy(color = FigmaTextPrimary, fontSize = 13.sp),
-                        decorationBox = { innerTextField ->
-                            if (exerciseName.isEmpty()) Text("Search exercise...", color = FigmaMutedText, fontSize = 13.sp)
-                            innerTextField()
-                        }
-                    )
-                }
-
-                if (isDropdownVisible) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = FigmaSurface),
-                        border = BorderStroke(1.dp, Color(0xFFE0E0E3)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                // Exercise Input with Dropdown
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(InputBackground)
+                            .border(1.dp, if (isDropdownVisible) AccentPurple else MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
-                        Column {
-                            filteredSuggestions.forEach { suggestion ->
-                                DropdownItem(suggestion) {
-                                    exerciseName = suggestion
-                                    isDropdownVisible = false
-                                }
+                        BasicTextField(
+                            value = exerciseName,
+                            onValueChange = {
+                                exerciseName = it
+                                isDropdownVisible = it.isNotEmpty()
+                            },
+                            textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
+                            decorationBox = { innerTextField ->
+                                if (exerciseName.isEmpty()) Text("Bench", color = MutedText, fontSize = 15.sp)
+                                innerTextField()
                             }
-                            if (!suggestions.any { it.equals(exerciseName, ignoreCase = true) }) {
-                                DropdownItem("+ Create \"$exerciseName\"", color = FigmaAccent) {
-                                    isDropdownVisible = false
+                        )
+                    }
+
+                    if (isDropdownVisible) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = CardBackground),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                filteredSuggestions.forEach { suggestion ->
+                                    DropdownItem(suggestion) {
+                                        exerciseName = suggestion
+                                        isDropdownVisible = false
+                                    }
+                                }
+                                if (!suggestions.any { it.equals(exerciseName, ignoreCase = true) }) {
+                                    DropdownItem("+ Create \"$exerciseName\"", color = AccentPurple) {
+                                        isDropdownVisible = false
+                                    }
                                 }
                             }
                         }
@@ -135,12 +138,12 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Weight unit", color = FigmaMutedText, fontSize = 11.sp)
+                    Text("WEIGHT UNIT", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(FigmaBackground)
-                            .padding(3.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(CardBackground)
+                            .padding(4.dp)
                     ) {
                         UnitButton("kg", weightUnit == "kg") { weightUnit = "kg" }
                         UnitButton("lbs", weightUnit == "lbs") { weightUnit = "lbs" }
@@ -151,71 +154,83 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Set", color = FigmaMutedText, fontSize = 11.sp, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
-                    Text("Weight ($weightUnit)", color = FigmaMutedText, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                    Text("Reps", color = FigmaMutedText, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                    Text("SET", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
+                    Text("WEIGHT (${weightUnit.uppercase()})", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text("REPS", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 }
 
                 sets.forEach { set ->
                     SetRow(set)
                 }
 
-                OutlinedButton(
-                    onClick = { sets.add(WorkoutSetState(sets.size + 1, mutableStateOf("0"), mutableStateOf("0"))) },
+                Button(
+                    onClick = { sets.add(WorkoutSetState(sets.size + 1, mutableStateOf(""), mutableStateOf(""))) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE0E0E3)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = FigmaTextPrimary)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CardBackground)
                 ) {
-                    Text("+ Add set", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text("+ Add set", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             } else {
                 // Cardio Section
-                CardioField("Duration (min)", duration) { duration = it }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CardioField("Distance (km)", distance, modifier = Modifier.weight(1f)) { distance = it }
-                    CardioField("Avg speed (km/h)", speed, modifier = Modifier.weight(1f)) { speed = it }
+                CardioField("DURATION (MIN)", duration) { duration = it }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CardioField("DISTANCE (KM)", distance, modifier = Modifier.weight(1f)) { distance = it }
+                    CardioField("AVG SPEED", speed, modifier = Modifier.weight(1f)) { speed = it }
                 }
-                CardioField("Incline (%)", incline) { incline = it }
+                CardioField("INCLINE", incline) { incline = it }
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
                 onClick = {
-                    if (exerciseName.isNotBlank()) {
-                        if (selectedTab == "Weights") {
-                            sets.forEach { set ->
-                                val w = set.weight.value.toFloatOrNull() ?: 0f
-                                val r = set.reps.value.toIntOrNull() ?: 0
-                                // Convert lbs to kg if needed
+                    if (selectedTab == "Weights") {
+                        val setRecords = sets.mapNotNull { set ->
+                            val weightVal = set.weight.value.toFloatOrNull()
+                            val repsVal = set.reps.value.toIntOrNull()
+                            if (weightVal == null && repsVal == null) null
+                            else {
+                                val w = weightVal ?: 0f
                                 val weightKg = if (weightUnit == "lbs") w * 0.453592f else w
-                                viewModel.addWorkout(
-                                    exerciseName = exerciseName,
-                                    sets = set.id,
-                                    reps = r,
-                                    weightKg = weightKg
+                                SetRecord(
+                                    weight = weightKg,
+                                    reps = repsVal ?: 0
                                 )
                             }
-                        } else {
+                        }
+                        if (setRecords.isNotEmpty()) {
                             viewModel.addWorkout(
                                 exerciseName = exerciseName,
-                                durationMin = duration.toIntOrNull(),
-                                distanceKm = distance.toFloatOrNull(),
-                                avgSpeed = speed.toFloatOrNull(),
-                                incline = incline.toFloatOrNull()
+                                setRecords = setRecords,
+                                isCardio = false
                             )
                         }
-                        onDone()
+                    } else {
+                        val cardioRecord = SetRecord(
+                            duration = duration.toIntOrNull() ?: 0
+                        )
+                        viewModel.addWorkout(
+                            exerciseName = exerciseName,
+                            setRecords = listOf(cardioRecord),
+                            isCardio = true
+                        )
                     }
+                    onDone()
                 },
+                enabled = exerciseName.isNotBlank() && (if (selectedTab == "Weights") sets.any { it.weight.value.isNotBlank() && it.reps.value.isNotBlank() } else duration.isNotBlank()),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = FigmaAccent)
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White, 
+                    contentColor = Color.Black,
+                    disabledContainerColor = Color.White.copy(alpha = 0.3f),
+                    disabledContentColor = Color.Black.copy(alpha = 0.5f)
+                )
             ) {
-                Text("Add exercise", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text("Add exercise", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -227,30 +242,30 @@ data class WorkoutSetState(val id: Int, val weight: MutableState<String>, val re
 fun TabItem(text: String, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isSelected) FigmaAccent else FigmaBackground)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isSelected) Color.White else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(vertical = 7.dp),
+            .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = if (isSelected) Color.White else FigmaTextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
+            color = if (isSelected) Color.Black else TextSecondary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
 
 @Composable
-fun DropdownItem(text: String, color: Color = FigmaTextPrimary, onClick: () -> Unit) {
+fun DropdownItem(text: String, color: Color = Color.White, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Text(text, color = color, fontSize = 12.sp)
+        Text(text, color = color, fontSize = 15.sp)
     }
 }
 
@@ -258,17 +273,17 @@ fun DropdownItem(text: String, color: Color = FigmaTextPrimary, onClick: () -> U
 fun UnitButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(5.dp))
-            .background(if (isSelected) FigmaAccent else FigmaBackground)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isSelected) Color.White else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 5.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = if (isSelected) Color.White else FigmaTextSecondary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Medium
+            color = if (isSelected) Color.Black else TextSecondary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -282,9 +297,9 @@ fun SetRow(set: WorkoutSetState) {
     ) {
         Text(
             text = "${set.id}",
-            color = FigmaTextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
+            color = TextSecondary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.width(28.dp),
             textAlign = TextAlign.Center
         )
@@ -297,15 +312,15 @@ fun SetRow(set: WorkoutSetState) {
 fun EditableInputBox(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(7.dp))
-            .background(FigmaBackground)
-            .border(1.dp, Color(0xFFE0E0E3), RoundedCornerShape(7.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(InputBackground)
+            .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = LocalTextStyle.current.copy(color = FigmaTextPrimary, fontSize = 12.sp),
+            textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
     }
@@ -313,20 +328,20 @@ fun EditableInputBox(value: String, onValueChange: (String) -> Unit, modifier: M
 
 @Composable
 fun CardioField(label: String, value: String, modifier: Modifier = Modifier, onValueChange: (String) -> Unit) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, color = FigmaMutedText, fontSize = 11.sp)
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(FigmaBackground)
-                .border(1.dp, Color(0xFFE0E0E3), RoundedCornerShape(8.dp))
-                .padding(horizontal = 12.dp, vertical = 9.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(InputBackground)
+                .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = LocalTextStyle.current.copy(color = FigmaTextPrimary, fontSize = 13.sp),
+                textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
         }

@@ -1,5 +1,7 @@
 package com.example.workouttracker.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,83 +24,133 @@ import com.example.workouttracker.viewmodel.AppViewModel
 @Composable
 fun CompareScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     // Mock data based on Figma
-    val avgWeight = "72.6 kg"
+    val avgWeight = "72.8 kg"
     val weightDelta = "-0.4 kg"
     val waterTotal = "12.4 L"
     val waterDelta = "+1.2 L"
     val workouts = "5 sessions"
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(FigmaSurface)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 20.dp)
+                .padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp)) {
-                    Text("←", fontSize = 20.sp, color = FigmaTextPrimary)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "This week vs last",
-                    color = FigmaTextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            Text(
+                text = "This week vs last",
+                color = Color.White,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             ComparisonRow(label = "Avg weight", value = avgWeight, delta = weightDelta)
-            Divider(color = Color(0xFFE5E5E8), thickness = 1.dp)
             ComparisonRow(label = "Water total", value = waterTotal, delta = waterDelta)
-            Divider(color = Color(0xFFE5E5E8), thickness = 1.dp)
-            ComparisonRow(label = "Workouts", value = workouts, delta = "same as last week", isMutedDelta = true)
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Bar Chart
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
             Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Workouts", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(workouts, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "same as last week",
+                        color = MutedText,
+                        fontSize = 12.sp,
+                        textDecoration = TextDecoration.Underline
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "ACTIVITY COMPARISON",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LegendItem("Last", Color.White)
+                    LegendItem("This", ChartCyan)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Bar Chart Container
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(70.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.Bottom
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(CardBackground)
+                    .padding(24.dp)
             ) {
-                ChartBar(height = 38.dp, color = FigmaChartLight, modifier = Modifier.weight(1f))
-                ChartBar(height = 52.dp, color = FigmaChartDark, modifier = Modifier.weight(1f))
-                ChartBar(height = 28.dp, color = FigmaChartLight, modifier = Modifier.weight(1f))
-                ChartBar(height = 63.dp, color = FigmaChartDark, modifier = Modifier.weight(1f))
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    ChartBar(height = 80.dp, color = ChartPurple, modifier = Modifier.weight(1f))
+                    ChartBar(height = 120.dp, color = ChartCyan, modifier = Modifier.weight(1f))
+                    ChartBar(height = 50.dp, color = ChartPurple, modifier = Modifier.weight(1f))
+                    ChartBar(height = 140.dp, color = ChartCyan, modifier = Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
 @Composable
-fun ComparisonRow(label: String, value: String, delta: String, isMutedDelta: Boolean = false) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = FigmaTextPrimary, fontSize = 13.sp)
-        Column(horizontalAlignment = Alignment.End) {
-            Text(value, color = FigmaTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            Text(
-                text = delta,
-                color = if (isMutedDelta) FigmaMutedText else Color(0xFF299959),
-                fontSize = 11.sp
-            )
+fun LegendItem(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color)
+        )
+        Text(label, color = MutedText, fontSize = 11.sp)
+    }
+}
+
+@Composable
+fun ComparisonRow(label: String, value: String, delta: String) {
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Column(horizontalAlignment = Alignment.End) {
+                Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = delta,
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
         }
+        Divider(color = MutedText.copy(alpha = 0.2f), thickness = 1.dp)
     }
 }
 
