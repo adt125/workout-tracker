@@ -1,5 +1,8 @@
 package com.example.workouttracker.ui
 
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
@@ -142,54 +145,108 @@ fun WorkoutLogCard(workout: WorkoutEntry, exName: String, viewModel: AppViewMode
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(CardBackground)
-            .clickable(onClick = onEdit)
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Header Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(exName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-            
-            if (sets.isNotEmpty() && previousSets.isNotEmpty()) {
-                val currentAvg = sets.mapNotNull { it.weight }.average()
-                val prevAvg = previousSets.mapNotNull { it.weight }.average()
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(exName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                if (sets.isNotEmpty() && previousSets.isNotEmpty()) {
+                    val currentAvg = sets.mapNotNull { it.weight }.average()
+                    val prevAvg = previousSets.mapNotNull { it.weight }.average()
 
-                if (!currentAvg.isNaN() && !prevAvg.isNaN()) {
-                    val comparisonText = when {
-                        currentAvg > prevAvg -> "Heavier"
-                        currentAvg < prevAvg -> "Lighter"
-                        else -> "Same"
-                    }
-                    val comparisonColor = when {
-                        currentAvg > prevAvg -> AccentGreen
-                        currentAvg < prevAvg -> Color(0xFFD32F2F)
-                        else -> TextSecondary
-                    }
-                    
-                    Surface(
-                        color = comparisonColor.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
+                    if (!currentAvg.isNaN() && !prevAvg.isNaN()) {
+                        val comparisonText = when {
+                            currentAvg > prevAvg -> "Heavier"
+                            currentAvg < prevAvg -> "Lighter"
+                            else -> "Same"
+                        }
+                        val comparisonColor = when {
+                            currentAvg > prevAvg -> AccentGreen
+                            currentAvg < prevAvg -> Color(0xFFD32F2F)
+                            else -> TextSecondary
+                        }
+                        
                         Text(
-                            text = comparisonText,
+                            text = "• $comparisonText than last time",
                             color = comparisonColor,
-                            fontSize = 10.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
+            
+            IconButton(
+                onClick = onEdit,
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit workout",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
 
-        sets.forEachIndexed { index, record ->
-            if (record.weight != null) {
-                Text("Set ${index + 1}: ${record.weight} kg • ${record.reps} reps", fontSize = 13.sp, color = TextSecondary)
-            } else if (record.duration != null) {
-                Text("Duration: ${record.duration} min", fontSize = 13.sp, color = TextSecondary)
+        // Side-by-side Layout Content
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Left Column: Current Sets
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "CURRENT SESSION",
+                    color = TextSecondary,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                sets.forEach { record ->
+                    if (record.weight != null) {
+                        Text("${record.weight} kg  •  ${record.reps} reps", fontSize = 13.sp, color = Color.White)
+                    } else if (record.duration != null) {
+                        Text("${record.duration} min", fontSize = 13.sp, color = Color.White)
+                    }
+                }
+            }
+
+            // Right Column: Previous Sets (if any)
+            if (previousSets.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "LAST TIME",
+                        color = MutedText,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    previousSets.forEach { record ->
+                        if (record.weight != null) {
+                            Text("${record.weight} kg  •  ${record.reps} reps", fontSize = 13.sp, color = TextSecondary)
+                        } else if (record.duration != null) {
+                            Text("${record.duration} min", fontSize = 13.sp, color = TextSecondary)
+                        }
+                    }
+                }
             }
         }
     }
