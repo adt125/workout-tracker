@@ -90,6 +90,8 @@ fun HistoryScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, o
                     Text("View Log for ${selectedDate.format(DateTimeFormatter.ofPattern("d MMM"))}", fontWeight = FontWeight.Bold)
                 }
             }
+            
+            Spacer(modifier = Modifier.height(100.dp))
         }
     }
 }

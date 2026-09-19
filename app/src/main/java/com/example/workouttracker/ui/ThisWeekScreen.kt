@@ -71,6 +71,9 @@ fun ThisWeekScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, 
                         onNavigateDayLog(date)
                     }
                 }
+                item {
+                    Spacer(modifier = Modifier.height(100.dp))
+                }
             }
         }
     }

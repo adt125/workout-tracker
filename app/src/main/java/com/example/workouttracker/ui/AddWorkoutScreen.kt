@@ -1,15 +1,16 @@
 package com.example.workouttracker.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,13 +25,16 @@ import androidx.compose.ui.unit.sp
 import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
-fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
+fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () -> Unit) {
     var selectedTab by remember { mutableStateOf("Weights") }
     var exerciseName by remember { mutableStateOf("") }
     var weightUnit by remember { mutableStateOf("kg") }
     var isDropdownVisible by remember { mutableStateOf(false) }
+    var workoutDate by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
 
     // Cardio specific states
     var duration by remember { mutableStateOf("") }
@@ -42,11 +46,37 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
     val filteredSuggestions = suggestions.filter { it.contains(exerciseName, ignoreCase = true) }
 
     val sets = remember {
-        mutableStateListOf(
-            WorkoutSetState(1, mutableStateOf(""), mutableStateOf("")),
-            WorkoutSetState(2, mutableStateOf(""), mutableStateOf("")),
-            WorkoutSetState(3, mutableStateOf(""), mutableStateOf(""))
-        )
+        mutableStateListOf<WorkoutSetState>()
+    }
+
+    // Initialize with default sets if not editing
+    LaunchedEffect(entryId) {
+        if (entryId != null) {
+            val workoutPair = viewModel.getWorkoutEntry(entryId)
+            if (workoutPair != null) {
+                val workout = workoutPair.first
+                exerciseName = workoutPair.second
+                workoutDate = workout.date
+                
+                val firstSet = workout.sets.firstOrNull()
+                if (firstSet?.duration != null) {
+                    selectedTab = "Cardio"
+                    duration = firstSet.duration.toString()
+                } else {
+                    selectedTab = "Weights"
+                    sets.clear()
+                    workout.sets.forEachIndexed { index, set ->
+                        sets.add(WorkoutSetState(index + 1, mutableStateOf(set.weight?.toString() ?: ""), mutableStateOf(set.reps?.toString() ?: "")))
+                    }
+                }
+            }
+        } else if (sets.isEmpty()) {
+            sets.addAll(listOf(
+                WorkoutSetState(1, mutableStateOf(""), mutableStateOf("")),
+                WorkoutSetState(2, mutableStateOf(""), mutableStateOf("")),
+                WorkoutSetState(3, mutableStateOf(""), mutableStateOf(""))
+            ))
+        }
     }
 
     Box(
@@ -55,13 +85,16 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp)
                 .padding(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header with Back Button
+            // Header with Back Button and Delete Button if editing
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDone, modifier = Modifier.offset(x = (-8).dp)) {
@@ -71,26 +104,37 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                         tint = Color.White
                     )
                 }
+                
+                if (entryId != null) {
+                    TextButton(onClick = {
+                        viewModel.deleteWorkout(entryId, workoutDate)
+                        onDone()
+                    }) {
+                        Text("Delete", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
             // Tab Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CardBackground)
-                    .padding(4.dp)
-            ) {
-                TabItem(
-                    text = "Weights",
-                    isSelected = selectedTab == "Weights",
-                    modifier = Modifier.weight(1f)
-                ) { selectedTab = "Weights" }
-                TabItem(
-                    text = "Cardio",
-                    isSelected = selectedTab == "Cardio",
-                    modifier = Modifier.weight(1f)
-                ) { selectedTab = "Cardio" }
+            if (entryId == null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CardBackground)
+                        .padding(4.dp)
+                ) {
+                    TabItem(
+                        text = "Weights",
+                        isSelected = selectedTab == "Weights",
+                        modifier = Modifier.weight(1f)
+                    ) { selectedTab = "Weights" }
+                    TabItem(
+                        text = "Cardio",
+                        isSelected = selectedTab == "Cardio",
+                        modifier = Modifier.weight(1f)
+                    ) { selectedTab = "Cardio" }
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -104,7 +148,6 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                             .clip(RoundedCornerShape(12.dp))
                             .background(InputBackground)
                             .border(1.dp, if (isDropdownVisible) AccentPurple else MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
                         BasicTextField(
                             value = exerciseName,
@@ -113,6 +156,9 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                                 isDropdownVisible = it.isNotEmpty()
                             },
                             textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
                             decorationBox = { innerTextField ->
                                 if (exerciseName.isEmpty()) Text("Bench", color = MutedText, fontSize = 15.sp)
                                 innerTextField()
@@ -195,8 +241,6 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                 CardioField("INCLINE", incline) { incline = it }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
             Button(
                 onClick = {
                     if (selectedTab == "Weights") {
@@ -217,7 +261,9 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                             viewModel.addWorkout(
                                 exerciseName = exerciseName,
                                 setRecords = setRecords,
-                                isCardio = false
+                                isCardio = false,
+                                date = workoutDate,
+                                replaceEntryId = entryId
                             )
                         }
                     } else {
@@ -227,7 +273,9 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                         viewModel.addWorkout(
                             exerciseName = exerciseName,
                             setRecords = listOf(cardioRecord),
-                            isCardio = true
+                            isCardio = true,
+                            date = workoutDate,
+                            replaceEntryId = entryId
                         )
                     }
                     onDone()
@@ -244,10 +292,10 @@ fun AddWorkoutScreen(viewModel: AppViewModel, onDone: () -> Unit) {
                     disabledContentColor = Color.Black.copy(alpha = 0.5f)
                 )
             ) {
-                Text("Add exercise", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(if (entryId != null) "Update exercise" else "Add exercise", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
-            Spacer(modifier = Modifier.height(72.dp))
+            Spacer(modifier = Modifier.height(200.dp))
         }
     }
 }
@@ -331,12 +379,14 @@ fun EditableInputBox(value: String, onValueChange: (String) -> Unit, modifier: M
             .clip(RoundedCornerShape(12.dp))
             .background(InputBackground)
             .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
     }
@@ -352,12 +402,14 @@ fun CardioField(label: String, value: String, modifier: Modifier = Modifier, onV
                 .clip(RoundedCornerShape(12.dp))
                 .background(InputBackground)
                 .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
         }

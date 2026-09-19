@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Balance
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
@@ -62,10 +61,10 @@ fun BottomNavigationBar(
                 onClick = { onNavigate("history") }
             )
             NavigationItem(
-                label = "Compare",
-                icon = Icons.Default.Balance,
-                isSelected = currentRoute == "compare",
-                onClick = { onNavigate("compare") }
+                label = "Report",
+                icon = Icons.Default.BarChart,
+                isSelected = currentRoute == "report",
+                onClick = { onNavigate("report") }
             )
         }
     }

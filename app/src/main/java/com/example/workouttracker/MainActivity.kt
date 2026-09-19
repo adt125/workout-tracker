@@ -3,11 +3,15 @@ package com.example.workouttracker
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -44,25 +48,32 @@ fun AppNav(viewModel: AppViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    val showBottomBar = currentRoute in listOf("dashboard", "this_week", "history", "report")
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            BottomNavigationBar(
-                currentRoute = currentRoute ?: "dashboard",
-                onNavigate = { route ->
-                    if (currentRoute != route) {
-                        navController.navigate(route) {
-                            popUpTo("dashboard") { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
+            if (showBottomBar) {
+                BottomNavigationBar(
+                    currentRoute = currentRoute ?: "dashboard",
+                    onNavigate = { route ->
+                        if (currentRoute != route) {
+                            navController.navigate(route) {
+                                popUpTo("dashboard") { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         }
     ) { padding ->
         Surface(
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding),
             color = MaterialTheme.colorScheme.background
         ) {
             NavHost(navController = navController, startDestination = "dashboard") {
@@ -70,16 +81,24 @@ fun AppNav(viewModel: AppViewModel) {
                     DashboardScreen(
                         viewModel = viewModel,
                         onNavigateAddWorkout = { navController.navigate("add_workout") },
-                        onNavigateCompare = { navController.navigate("compare") },
+                        onNavigateReport = { navController.navigate("report") },
                         onNavigateThisWeek = { navController.navigate("this_week") },
-                        onNavigateHistory = { navController.navigate("history") }
+                        onNavigateHistory = { navController.navigate("history") },
+                        onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") }
                     )
                 }
                 composable("add_workout") {
                     AddWorkoutScreen(viewModel, onDone = { navController.popBackStack() })
                 }
-                composable("compare") {
-                    CompareScreen(viewModel, onBack = { navController.popBackStack() })
+                composable(
+                    route = "edit_workout/{entryId}",
+                    arguments = listOf(navArgument("entryId") { type = NavType.LongType })
+                ) { backStackEntry ->
+                    val entryId = backStackEntry.arguments?.getLong("entryId")
+                    AddWorkoutScreen(viewModel, entryId = entryId, onDone = { navController.popBackStack() })
+                }
+                composable("report") {
+                    ReportScreen(viewModel, onBack = { navController.popBackStack() })
                 }
                 composable("this_week") {
                     ThisWeekScreen(viewModel, onNavigateDayLog = { date -> navController.navigate("day_log/$date") }, onBack = { navController.popBackStack() })
@@ -92,7 +111,12 @@ fun AppNav(viewModel: AppViewModel) {
                     arguments = listOf(navArgument("date") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val date = backStackEntry.arguments?.getString("date") ?: ""
-                    DayLogScreen(viewModel, date, onBack = { navController.popBackStack() })
+                    DayLogScreen(
+                        viewModel = viewModel,
+                        date = date,
+                        onBack = { navController.popBackStack() },
+                        onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") }
+                    )
                 }
             }
         }

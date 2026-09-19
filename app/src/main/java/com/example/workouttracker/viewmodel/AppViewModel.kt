@@ -20,6 +20,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _todayWeight = mutableStateOf<Float?>(null)
     val todayWeight: State<Float?> = _todayWeight
 
+    private val _lastKnownWeight = mutableStateOf<Float?>(null)
+    val lastKnownWeight: State<Float?> = _lastKnownWeight
+
     private val _todayWater = mutableStateOf(0f)
     val todayWater: State<Float> = _todayWater
 
@@ -38,8 +41,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _dayWorkoutsList = mutableStateOf<List<Pair<WorkoutEntry, String>>>(emptyList())
     val dayWorkoutsList: State<List<Pair<WorkoutEntry, String>>> = _dayWorkoutsList
 
+    private val _dayMetrics = mutableStateOf<HealthMetric?>(null)
+    val dayMetrics: State<HealthMetric?> = _dayMetrics
+
     private val _recentWorkouts = mutableStateOf<List<Pair<WorkoutEntry, String>>>(emptyList())
     val recentWorkouts: State<List<Pair<WorkoutEntry, String>>> = _recentWorkouts
+
+    private val _weekMetrics = mutableStateOf<List<HealthMetric>>(emptyList())
+    val weekMetrics: State<List<HealthMetric>> = _weekMetrics
+
+    private val _weekWorkoutCounts = mutableStateOf<Map<String, Int>>(emptyMap())
+    val weekWorkoutCounts: State<Map<String, Int>> = _weekWorkoutCounts
 
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
@@ -47,6 +59,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         refreshToday()
         refreshExercises()
         loadRecentWorkouts()
+        loadWeekMetrics()
     }
 
     fun refreshToday() {
@@ -55,11 +68,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val metrics = db.getDailyMetrics(today)
             val workouts = db.getWorkoutsForDate(today)
             val workoutCount = workouts.filter { it.first.exerciseId != null }.size
+            val lastWeight = db.getLatestWeight()
 
             withContext(Dispatchers.Main) {
                 _todayWater.value = metrics.water
                 _todayProtein.value = metrics.protein
                 _todayWeight.value = if (metrics.bodyWeight > 0) metrics.bodyWeight else null
+                _lastKnownWeight.value = lastWeight
                 _todayWorkouts.value = workoutCount
             }
         }
@@ -79,8 +94,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun loadWorkoutsForDate(date: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val workouts = db.getWorkoutsForDate(date)
+            val metrics = db.getDailyMetrics(date)
             withContext(Dispatchers.Main) {
                 _dayWorkoutsList.value = workouts
+                _dayMetrics.value = metrics
             }
         }
     }
@@ -90,6 +107,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val workouts = db.getRecentWorkouts(6)
             withContext(Dispatchers.Main) {
                 _recentWorkouts.value = workouts
+            }
+        }
+    }
+
+    fun loadWeekMetrics(weekOffset: Int = 0) {
+        val endOfWeek = LocalDate.now().plusWeeks(weekOffset.toLong())
+        val startOfWeek = endOfWeek.minusDays(6)
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            val metrics = db.getMetricsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
+            val workoutCounts = db.getWorkoutCountsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
+            withContext(Dispatchers.Main) {
+                _weekMetrics.value = metrics
+                _weekWorkoutCounts.value = workoutCounts
             }
         }
     }
@@ -111,9 +142,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         exerciseName: String,
         setRecords: List<SetRecord>,
         isCardio: Boolean = false,
-        date: String = LocalDate.now().format(formatter)
+        date: String = LocalDate.now().format(formatter),
+        replaceEntryId: Long? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (replaceEntryId != null) {
+                db.deleteWorkoutEntry(replaceEntryId)
+            }
+            
             val sessionId = db.getOrCreateSessionId(date)
             val exId = db.getOrCreateExerciseId(exerciseName)
             
@@ -125,6 +161,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             refreshToday()
             refreshExercises()
             loadRecentWorkouts()
+            
+            // If we replaced an entry, we might need to refresh the day log if it's currently showing
+            loadWorkoutsForDate(date)
+        }
+    }
+
+    fun deleteWorkout(entryId: Long, date: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.deleteWorkoutEntry(entryId)
+            refreshToday()
+            loadRecentWorkouts()
+            loadWorkoutsForDate(date)
         }
     }
 
@@ -146,5 +194,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             )
             refreshToday()
         }
+    }
+
+    fun getBackupDataJson(): String {
+        val data = db.getAllDataForBackup()
+        return gson.toJson(data)
+    }
+
+    suspend fun getWorkoutEntry(entryId: Long): Pair<WorkoutEntry, String>? = withContext(Dispatchers.IO) {
+        db.getWorkoutEntryById(entryId)
     }
 }
