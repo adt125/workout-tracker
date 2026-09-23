@@ -35,8 +35,51 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
     val formatter = DateTimeFormatter.ofPattern("EEEE, d MMMM")
     val displayDate = try { LocalDate.parse(date).format(formatter) } catch(e: Exception) { date }
 
+    var showWeightDialog by remember { mutableStateOf(false) }
+    var showWaterDialog by remember { mutableStateOf(false) }
+    var showProteinDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(date) {
         viewModel.loadWorkoutsForDate(date)
+    }
+
+    if (showWeightDialog) {
+        LogMetricDialog(
+            title = "Edit Weight",
+            label = "KG",
+            initialValue = dayMetrics?.bodyWeight?.let { if (it > 0) it.toString() else "" } ?: "",
+            onDismiss = { showWeightDialog = false },
+            onConfirm = { value ->
+                viewModel.updateDailyMetrics(weight = value.toFloatOrNull(), date = date)
+                showWeightDialog = false
+            }
+        )
+    }
+
+    if (showWaterDialog) {
+        LogMetricDialog(
+            title = "Edit Water",
+            label = "LITRES",
+            initialValue = dayMetrics?.water?.let { if (it > 0) it.toString() else "" } ?: "",
+            onDismiss = { showWaterDialog = false },
+            onConfirm = { value ->
+                viewModel.updateDailyMetrics(water = value.toFloatOrNull() ?: 0f, date = date)
+                showWaterDialog = false
+            }
+        )
+    }
+
+    if (showProteinDialog) {
+        LogMetricDialog(
+            title = "Edit Protein",
+            label = "GRAMS",
+            initialValue = dayMetrics?.protein?.let { if (it > 0) it.toInt().toString() else "" } ?: "",
+            onDismiss = { showProteinDialog = false },
+            onConfirm = { value ->
+                viewModel.updateDailyMetrics(protein = value.toFloatOrNull() ?: 0f, date = date)
+                showProteinDialog = false
+            }
+        )
     }
 
     Column(
@@ -74,9 +117,9 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
                         .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    MetricSummaryItem("Weight", dayMetrics?.bodyWeight?.let { if (it > 0) "$it kg" else "--" } ?: "--", "⚖", Modifier.weight(1f))
-                    MetricSummaryItem("Water", dayMetrics?.water?.let { "$it L" } ?: "0 L", "💧", Modifier.weight(1f))
-                    MetricSummaryItem("Protein", dayMetrics?.protein?.let { "${it.toInt()} g" } ?: "0 g", "💊", Modifier.weight(1f))
+                    MetricSummaryItem("Weight", dayMetrics?.bodyWeight?.let { if (it > 0) "$it kg" else "--" } ?: "--", "⚖", Modifier.weight(1f)) { showWeightDialog = true }
+                    MetricSummaryItem("Water", dayMetrics?.water?.let { "$it L" } ?: "0 L", "💧", Modifier.weight(1f)) { showWaterDialog = true }
+                    MetricSummaryItem("Protein", dayMetrics?.protein?.let { "${it.toInt()} g" } ?: "0 g", "💊", Modifier.weight(1f)) { showProteinDialog = true }
                 }
             }
 
@@ -105,9 +148,9 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
 }
 
 @Composable
-fun MetricSummaryItem(label: String, value: String, icon: String, modifier: Modifier = Modifier) {
+fun MetricSummaryItem(label: String, value: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     Surface(
-        modifier = modifier,
+        modifier = modifier.clickable(onClick = onClick),
         color = CardBackground,
         shape = RoundedCornerShape(12.dp)
     ) {

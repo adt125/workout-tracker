@@ -25,6 +25,7 @@ import java.util.Locale
 fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val weekMetrics by viewModel.weekMetrics
     val weekWorkoutCounts by viewModel.weekWorkoutCounts
+    val weekCardioCounts by viewModel.weekCardioCounts
     var weekOffset by remember { mutableIntStateOf(0) }
     
     LaunchedEffect(weekOffset) {
@@ -45,6 +46,7 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val avgWater = if (weekMetrics.isNotEmpty()) weekMetrics.map { it.water }.average().toFloat() else 0f
     val avgWeight = if (weekMetrics.isNotEmpty()) weekMetrics.filter { it.bodyWeight > 0 }.map { it.bodyWeight }.average().toFloat() else 0f
     val totalWorkouts = weekWorkoutCounts.values.sum()
+    val totalCardio = weekCardioCounts.values.sum()
 
     Column(
         modifier = Modifier
@@ -119,6 +121,15 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             metrics = fullWeekMetrics,
             valueSelector = { weekWorkoutCounts[it.date]?.toFloat() ?: 0f },
             barColor = ChartCyan
+        )
+
+        ReportSection(
+            title = "CARDIO EXERCISES",
+            avgValue = "$totalCardio",
+            avgLabel = "Total this week",
+            metrics = fullWeekMetrics,
+            valueSelector = { weekCardioCounts[it.date]?.toFloat() ?: 0f },
+            barColor = AccentBlue
         )
 
         ReportSection(

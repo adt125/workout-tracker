@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
@@ -44,6 +47,62 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
 
     val suggestions by viewModel.exerciseSuggestions
     val filteredSuggestions = suggestions.filter { it.contains(exerciseName, ignoreCase = true) }
+    var showAllExercisesDialog by remember { mutableStateOf(false) }
+
+    if (showAllExercisesDialog) {
+        Dialog(onDismissRequest = { showAllExercisesDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.7f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(CardBackground)
+                    .padding(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "All Exercises",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(suggestions) { exercise ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        exerciseName = exercise
+                                        showAllExercisesDialog = false
+                                        isDropdownVisible = false
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                            ) {
+                                Text(exercise, color = Color.White, fontSize = 15.sp)
+                            }
+                        }
+                    }
+
+                    TextButton(
+                        onClick = { showAllExercisesDialog = false },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Close", color = AccentPurple, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
 
     val sets = remember {
         mutableStateListOf<WorkoutSetState>()
@@ -183,6 +242,10 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                                 if (!suggestions.any { it.equals(exerciseName, ignoreCase = true) }) {
                                     DropdownItem("+ Create \"$exerciseName\"", color = AccentPurple) {
                                         isDropdownVisible = false
+                                    }
+                                    DropdownItem("View all exercises", color = Color.White) {
+                                        isDropdownVisible = false
+                                        showAllExercisesDialog = true
                                     }
                                 }
                             }

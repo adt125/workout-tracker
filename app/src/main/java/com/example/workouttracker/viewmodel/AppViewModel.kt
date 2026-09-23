@@ -53,6 +53,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _weekWorkoutCounts = mutableStateOf<Map<String, Int>>(emptyMap())
     val weekWorkoutCounts: State<Map<String, Int>> = _weekWorkoutCounts
 
+    private val _weekCardioCounts = mutableStateOf<Map<String, Int>>(emptyMap())
+    val weekCardioCounts: State<Map<String, Int>> = _weekCardioCounts
+
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
     init {
@@ -118,9 +121,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val metrics = db.getMetricsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
             val workoutCounts = db.getWorkoutCountsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
+            val cardioCounts = db.getCardioWorkoutCountsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
             withContext(Dispatchers.Main) {
                 _weekMetrics.value = metrics
                 _weekWorkoutCounts.value = workoutCounts
+                _weekCardioCounts.value = cardioCounts
             }
         }
     }
@@ -193,6 +198,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
             refreshToday()
+            loadWorkoutsForDate(date)
         }
     }
 

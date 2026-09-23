@@ -92,21 +92,22 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     // --- Exercise methods ---
     fun getOrCreateExerciseId(name: String): Int {
         val db = writableDatabase
-        val cursor = db.query(TABLE_EXERCISES, arrayOf("id"), "name = ?", arrayOf(name), null, null, null)
+        val trimmed = name.trim()
+        val cursor = db.query(TABLE_EXERCISES, arrayOf("id"), "LOWER(name) = LOWER(?)", arrayOf(trimmed), null, null, null)
         return if (cursor.moveToFirst()) {
             val id = cursor.getInt(0)
             cursor.close()
             id
         } else {
             cursor.close()
-            val cv = ContentValues().apply { put("name", name) }
+            val cv = ContentValues().apply { put("name", trimmed) }
             db.insert(TABLE_EXERCISES, null, cv).toInt()
         }
     }
 
     fun getAllExercises(): List<Exercise> {
         val list = mutableListOf<Exercise>()
-        val cursor = readableDatabase.query(TABLE_EXERCISES, arrayOf("id", "name"), null, null, null, null, "name ASC")
+        val cursor = readableDatabase.query(TABLE_EXERCISES, arrayOf("id", "name"), null, null, null, null, "name COLLATE NOCASE ASC")
         cursor.use {
             while (it.moveToNext()) {
                 list.add(Exercise(it.getInt(0), it.getString(1)))
@@ -314,6 +315,25 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             FROM $TABLE_WORKOUT_SESSIONS 
             WHERE date BETWEEN ? AND ?
             GROUP BY date
+        """.trimIndent()
+        val cursor = readableDatabase.rawQuery(query, arrayOf(from, to))
+        cursor.use {
+            while (it.moveToNext()) {
+                map[it.getString(0)] = it.getInt(1)
+            }
+        }
+        return map
+    }
+
+    fun getCardioWorkoutCountsBetween(from: String, to: String): Map<String, Int> {
+        val map = mutableMapOf<String, Int>()
+        val query = """
+            SELECT s.date, COUNT(e.id) as count 
+            FROM $TABLE_WORKOUT_SESSIONS s
+            JOIN $TABLE_WORKOUT_ENTRIES e ON s.id = e.session_id
+            JOIN $TABLE_WORKOUT_SETS ws ON e.id = ws.entry_id
+            WHERE s.date BETWEEN ? AND ? AND ws.duration IS NOT NULL
+            GROUP BY s.date
         """.trimIndent()
         val cursor = readableDatabase.rawQuery(query, arrayOf(from, to))
         cursor.use {
