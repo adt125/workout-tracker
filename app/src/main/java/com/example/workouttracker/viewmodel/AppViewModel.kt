@@ -32,11 +32,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _todayWorkouts = mutableStateOf(0)
     val todayWorkouts: State<Int> = _todayWorkouts
 
+    private val _todayNotes = mutableStateOf<String?>(null)
+    val todayNotes: State<String?> = _todayNotes
+
+    private val _dayNotes = mutableStateOf<String?>(null)
+    val dayNotes: State<String?> = _dayNotes
+
     private val _exerciseSuggestions = mutableStateOf<List<String>>(emptyList())
     val exerciseSuggestions: State<List<String>> = _exerciseSuggestions
 
     private val _weekWorkouts = mutableStateOf<List<Pair<WorkoutEntry, String>>>(emptyList())
     val weekWorkouts: State<List<Pair<WorkoutEntry, String>>> = _weekWorkouts
+
+    private val _weekSummaries = mutableStateOf<List<DaySummary>>(emptyList())
+    val weekSummaries: State<List<DaySummary>> = _weekSummaries
 
     private val _dayWorkoutsList = mutableStateOf<List<Pair<WorkoutEntry, String>>>(emptyList())
     val dayWorkoutsList: State<List<Pair<WorkoutEntry, String>>> = _dayWorkoutsList
@@ -72,6 +81,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val workouts = db.getWorkoutsForDate(today)
             val workoutCount = workouts.filter { it.first.exerciseId != null }.size
             val lastWeight = db.getLatestWeight()
+            val session = db.getSessionForDate(today)
 
             withContext(Dispatchers.Main) {
                 _todayWater.value = metrics.water
@@ -79,6 +89,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 _todayWeight.value = if (metrics.bodyWeight > 0) metrics.bodyWeight else null
                 _lastKnownWeight.value = lastWeight
                 _todayWorkouts.value = workoutCount
+                _todayNotes.value = session?.notes
             }
         }
     }
@@ -86,22 +97,63 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun loadWeekWorkouts() {
         val today = LocalDate.now()
         val startOfWeek = today.minusDays(today.dayOfWeek.value.toLong() - 1)
+        val from = startOfWeek.format(formatter)
+        val to = today.format(formatter)
+
         viewModelScope.launch(Dispatchers.IO) {
-            val workouts = db.getWorkoutsBetween(startOfWeek.format(formatter), today.format(formatter))
+            val workouts = db.getWorkoutsBetween(from, to)
+            val metrics = db.getMetricsBetween(from, to).associateBy { it.date }
+            val sessions = db.getSessionsBetween(from, to).associateBy { it.date }
+
+            val workoutGrouped = workouts.groupBy { hb -> hb.first.date }
+
+            val allDates = mutableSetOf<String>()
+            allDates.addAll(workoutGrouped.keys)
+            allDates.addAll(metrics.keys)
+            allDates.addAll(sessions.keys)
+
+            val summaries = allDates.sortedDescending().map { date ->
+                DaySummary(
+                    date = date,
+                    workouts = workoutGrouped[date] ?: emptyList(),
+                    metrics = metrics[date],
+                    notes = sessions[date]?.notes
+                )
+            }
+
             withContext(Dispatchers.Main) {
                 _weekWorkouts.value = workouts
+                _weekSummaries.value = summaries
             }
         }
+    }
+
+    suspend fun getDaySummary(date: String): DaySummary = withContext(Dispatchers.IO) {
+        val workouts = db.getWorkoutsForDate(date)
+        val metrics = db.getDailyMetrics(date)
+        val session = db.getSessionForDate(date)
+        DaySummary(date, workouts, metrics, session?.notes)
     }
 
     fun loadWorkoutsForDate(date: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val workouts = db.getWorkoutsForDate(date)
             val metrics = db.getDailyMetrics(date)
+            val session = db.getSessionForDate(date)
             withContext(Dispatchers.Main) {
                 _dayWorkoutsList.value = workouts
                 _dayMetrics.value = metrics
+                _dayNotes.value = session?.notes
             }
+        }
+    }
+
+    fun updateSessionNotes(date: String, notes: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.updateSessionNotes(date, notes)
+            refreshToday()
+            loadWorkoutsForDate(date)
+            loadRecentWorkouts()
         }
     }
 

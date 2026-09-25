@@ -54,12 +54,14 @@ fun DashboardScreen(
     val lastKnownWeight by viewModel.lastKnownWeight
     val water by viewModel.todayWater
     val protein by viewModel.todayProtein
+    val todayNotes by viewModel.todayNotes
     val recentWorkouts by viewModel.recentWorkouts
     val context = LocalContext.current
 
     var showWeightDialog by remember { mutableStateOf(false) }
     var showWaterDialog by remember { mutableStateOf(false) }
     var showProteinDialog by remember { mutableStateOf(false) }
+    var showNotesDialog by remember { mutableStateOf(false) }
     var isRecentExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -107,6 +109,18 @@ fun DashboardScreen(
                     viewModel.updateDailyMetrics(protein = (protein + (value.toFloatOrNull() ?: 0f)))
                 }
                 showProteinDialog = false
+            }
+        )
+    }
+
+    if (showNotesDialog) {
+        LogNotesDialog(
+            title = "Workout Notes",
+            initialValue = todayNotes ?: "",
+            onDismiss = { showNotesDialog = false },
+            onConfirm = { value ->
+                viewModel.updateSessionNotes(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE), if (value.isBlank()) null else value)
+                showNotesDialog = false
             }
         )
     }
@@ -200,6 +214,10 @@ fun DashboardScreen(
                     icon = "🤖",
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            NotesCard(notes = todayNotes, modifier = Modifier.fillMaxWidth()) {
+                showNotesDialog = true
             }
 
             // Recent Logs Section

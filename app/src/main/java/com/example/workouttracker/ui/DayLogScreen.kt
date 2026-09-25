@@ -16,10 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.text.BasicTextField
 import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.data.WorkoutEntry
 import com.example.workouttracker.ui.theme.*
@@ -32,12 +38,14 @@ import java.time.format.DateTimeFormatter
 fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNavigateEditWorkout: (Long) -> Unit) {
     val workouts by viewModel.dayWorkoutsList
     val dayMetrics by viewModel.dayMetrics
+    val dayNotes by viewModel.dayNotes
     val formatter = DateTimeFormatter.ofPattern("EEEE, d MMMM")
     val displayDate = try { LocalDate.parse(date).format(formatter) } catch(e: Exception) { date }
 
     var showWeightDialog by remember { mutableStateOf(false) }
     var showWaterDialog by remember { mutableStateOf(false) }
     var showProteinDialog by remember { mutableStateOf(false) }
+    var showNotesDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(date) {
         viewModel.loadWorkoutsForDate(date)
@@ -78,6 +86,18 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
             onConfirm = { value ->
                 viewModel.updateDailyMetrics(protein = value.toFloatOrNull() ?: 0f, date = date)
                 showProteinDialog = false
+            }
+        )
+    }
+
+    if (showNotesDialog) {
+        LogNotesDialog(
+            title = "Workout Notes",
+            initialValue = dayNotes ?: "",
+            onDismiss = { showNotesDialog = false },
+            onConfirm = { value ->
+                viewModel.updateSessionNotes(date, if (value.isBlank()) null else value)
+                showNotesDialog = false
             }
         )
     }
@@ -123,12 +143,18 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
                 }
             }
 
+            item {
+                NotesCard(notes = dayNotes, modifier = Modifier.fillMaxWidth()) {
+                    showNotesDialog = true
+                }
+            }
+
             if (workouts.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 60.dp),
+                            .padding(top = 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("No logs for this day", color = TextSecondary)
@@ -288,6 +314,151 @@ fun WorkoutLogCard(workout: WorkoutEntry, exName: String, viewModel: AppViewMode
                         } else if (record.duration != null) {
                             Text("${record.duration} min", fontSize = 13.sp, color = TextSecondary)
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NotesCard(notes: String?, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        color = CardBackground,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("WORKOUT NOTES", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                Text("📝", fontSize = 14.sp)
+            }
+            if (!notes.isNullOrBlank()) {
+                Text(
+                    text = notes,
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            } else {
+                Text(
+                    text = "Tap to add notes for the day...",
+                    color = MutedText,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun LogNotesDialog(
+    title: String,
+    initialValue: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var value by remember { mutableStateOf(initialValue) }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(CardBackground)
+                .padding(24.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "NOTES",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(InputBackground)
+                            .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .clickable { focusRequester.requestFocus() }
+                            .padding(16.dp)
+                    ) {
+                        BasicTextField(
+                            value = value,
+                            onValueChange = { value = it },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .focusRequester(focusRequester),
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            cursorBrush = SolidColor(Color.White),
+                            decorationBox = { innerTextField ->
+                                if (value.isEmpty()) {
+                                    Text("How was your workout today? Any PRs, energy levels, or notes...", color = MutedText, fontSize = 14.sp)
+                                }
+                                innerTextField()
+                            }
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (initialValue.isNotEmpty()) {
+                        Button(
+                            onClick = { onConfirm("") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD32F2F).copy(alpha = 0.2f),
+                                contentColor = Color(0xFFD32F2F)
+                            )
+                        ) {
+                            Text("Clear", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Button(
+                        onClick = { onConfirm(value) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        )
+                    ) {
+                        Text("Save", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

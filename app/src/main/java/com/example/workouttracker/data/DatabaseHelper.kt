@@ -133,6 +133,58 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
     }
 
+    fun getSessionForDate(date: String): WorkoutSession? {
+        val cursor = readableDatabase.query(
+            TABLE_WORKOUT_SESSIONS,
+            arrayOf("id", "date", "start_time", "notes"),
+            "date = ?",
+            arrayOf(date),
+            null, null, null
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                return WorkoutSession(
+                    id = it.getLong(0),
+                    date = it.getString(1),
+                    startTime = it.getString(2),
+                    notes = it.getString(3)
+                )
+            }
+        }
+        return null
+    }
+
+    fun getSessionsBetween(from: String, to: String): List<WorkoutSession> {
+        val list = mutableListOf<WorkoutSession>()
+        val cursor = readableDatabase.query(
+            TABLE_WORKOUT_SESSIONS,
+            arrayOf("id", "date", "start_time", "notes"),
+            "date BETWEEN ? AND ?",
+            arrayOf(from, to),
+            null, null, "date DESC"
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(WorkoutSession(
+                    id = it.getLong(0),
+                    date = it.getString(1),
+                    startTime = it.getString(2),
+                    notes = it.getString(3)
+                ))
+            }
+        }
+        return list
+    }
+
+    fun updateSessionNotes(date: String, notes: String?) {
+        val db = writableDatabase
+        val sessionId = getOrCreateSessionId(date)
+        val cv = ContentValues().apply {
+            put("notes", notes)
+        }
+        db.update(TABLE_WORKOUT_SESSIONS, cv, "id = ?", arrayOf(sessionId.toString()))
+    }
+
     // --- Entry & Set methods ---
     fun insertWorkout(sessionId: Long, exerciseId: Int, sets: List<SetRecord>) {
         val db = writableDatabase

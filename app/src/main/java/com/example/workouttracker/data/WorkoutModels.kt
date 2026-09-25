@@ -30,3 +30,10 @@ data class SetRecord(
     val reps: Int? = null,
     val duration: Int? = null
 )
+
+data class DaySummary(
+    val date: String,
+    val workouts: List<Pair<WorkoutEntry, String>>,
+    val metrics: HealthMetric?,
+    val notes: String?
+)

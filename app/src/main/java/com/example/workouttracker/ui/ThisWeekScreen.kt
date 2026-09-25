@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.workouttracker.data.WorkoutEntry
+import com.example.workouttracker.data.DaySummary
 import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
 import java.time.LocalDate
@@ -26,14 +26,11 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThisWeekScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, onBack: () -> Unit) {
-    val workouts by viewModel.weekWorkouts
+    val summaries by viewModel.weekSummaries
     
     LaunchedEffect(Unit) {
         viewModel.loadWeekWorkouts()
     }
-
-    val groupedWorkouts = workouts.groupBy { it.first.date }
-    val days = groupedWorkouts.keys.sortedDescending()
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -54,9 +51,9 @@ fun ThisWeekScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, 
             )
         }
 
-        if (days.isEmpty()) {
+        if (summaries.isEmpty()) {
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text("No workouts this week yet", color = TextSecondary)
+                Text("No activity recorded this week yet", color = TextSecondary)
             }
         } else {
             LazyColumn(
@@ -65,10 +62,9 @@ fun ThisWeekScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, 
                     .padding(horizontal = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(days) { date ->
-                    val dayWorkouts = groupedWorkouts[date] ?: emptyList()
-                    WeekDayCard(date, dayWorkouts) {
-                        onNavigateDayLog(date)
+                items(summaries, key = { it.date }) { summary ->
+                    WeekDayCard(summary) {
+                        onNavigateDayLog(summary.date)
                     }
                 }
                 item {
@@ -80,11 +76,11 @@ fun ThisWeekScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, 
 }
 
 @Composable
-fun WeekDayCard(date: String, workouts: List<Pair<WorkoutEntry, String>>, onClick: () -> Unit) {
+fun WeekDayCard(summary: DaySummary, onClick: () -> Unit) {
     val formatter = DateTimeFormatter.ofPattern("EEEE, d MMM")
-    val displayDate = try { LocalDate.parse(date).format(formatter) } catch(e: Exception) { date }
+    val displayDate = try { LocalDate.parse(summary.date).format(formatter) } catch(e: Exception) { summary.date }
     
-    val workoutCount = workouts.filter { it.first.exerciseId != null }.size
+    val workoutCount = summary.workouts.filter { it.first.exerciseId != null }.size
 
     Box(
         modifier = Modifier
@@ -94,13 +90,51 @@ fun WeekDayCard(date: String, workouts: List<Pair<WorkoutEntry, String>>, onClic
             .clickable(onClick = onClick)
             .padding(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(displayDate, fontWeight = FontWeight.Bold, color = Color.White)
-            Text("$workoutCount exercises logged", color = TextSecondary, fontSize = 13.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(displayDate, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
             
-            val exercises = workouts.map { it.second }.filter { it.isNotEmpty() }.distinct().joinToString(", ")
-            if (exercises.isNotEmpty()) {
-                Text(exercises, color = MutedText, fontSize = 12.sp, maxLines = 1)
+            if (workoutCount > 0) {
+                Text("$workoutCount exercises logged", color = Color.White, fontSize = 13.sp)
+                val exercises = summary.workouts.map { it.second }.filter { it.isNotEmpty() }.distinct().joinToString(", ")
+                if (exercises.isNotEmpty()) {
+                    Text(exercises, color = MutedText, fontSize = 12.sp, maxLines = 1)
+                }
+            } else {
+                Text("No workouts logged", color = TextSecondary, fontSize = 13.sp)
+            }
+
+            val metrics = summary.metrics
+            val hasMetrics = metrics != null && (metrics.bodyWeight > 0f || metrics.water > 0f || metrics.protein > 0f)
+            if (hasMetrics) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (metrics!!.bodyWeight > 0f) {
+                        Text("⚖ ${metrics.bodyWeight} kg", color = TextSecondary, fontSize = 12.sp)
+                    }
+                    if (metrics.water > 0f) {
+                        Text("💧 ${metrics.water} L", color = TextSecondary, fontSize = 12.sp)
+                    }
+                    if (metrics.protein > 0f) {
+                        Text("💊 ${metrics.protein.toInt()} g", color = TextSecondary, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            if (!summary.notes.isNullOrBlank()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text("📝", fontSize = 12.sp)
+                    Text(
+                        text = summary.notes,
+                        color = AccentPurple,
+                        fontSize = 12.sp,
+                        maxLines = 2
+                    )
+                }
             }
         }
     }

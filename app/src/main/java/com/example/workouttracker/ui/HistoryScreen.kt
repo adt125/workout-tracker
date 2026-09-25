@@ -3,6 +3,7 @@ package com.example.workouttracker.ui
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -13,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.workouttracker.data.DaySummary
 import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
 import java.time.Instant
@@ -79,15 +81,33 @@ fun HistoryScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, o
             }
             
             if (selectedDate != null) {
-                Button(
-                    onClick = { onNavigateDayLog(selectedDate.format(formatter)) },
+                val dateStr = selectedDate.format(formatter)
+                var summary by remember { mutableStateOf<DaySummary?>(null) }
+                
+                LaunchedEffect(dateStr) {
+                    summary = viewModel.getDaySummary(dateStr)
+                }
+
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = AppBackground)
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("View Log for ${selectedDate.format(DateTimeFormatter.ofPattern("d MMM"))}", fontWeight = FontWeight.Bold)
+                    if (summary != null) {
+                        WeekDayCard(summary!!) {
+                            onNavigateDayLog(dateStr)
+                        }
+                    }
+
+                    Button(
+                        onClick = { onNavigateDayLog(dateStr) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = AppBackground)
+                    ) {
+                        Text("View Full Log", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             
