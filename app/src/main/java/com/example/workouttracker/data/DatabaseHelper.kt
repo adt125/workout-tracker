@@ -11,13 +11,15 @@ import com.google.gson.reflect.TypeToken
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
     companion object {
         private const val DATABASE_NAME = "workout_db"
-        private const val DATABASE_VERSION = 5
+        private const val DATABASE_VERSION = 6
 
         private const val TABLE_EXERCISES = "exercises"
         private const val TABLE_HEALTH_METRICS = "health_metrics"
         private const val TABLE_WORKOUT_SESSIONS = "workout_sessions"
         private const val TABLE_WORKOUT_ENTRIES = "workout_entries"
         private const val TABLE_WORKOUT_SETS = "workout_sets"
+        private const val TABLE_USER_GOALS = "user_goals"
+        private const val TABLE_ACTIVITY_LOGS = "activity_logs"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -74,6 +76,36 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             )
         """.trimIndent())
         
+        // 6. User Goals table
+        db.execSQL("""
+            CREATE TABLE $TABLE_USER_GOALS (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                current_weight REAL,
+                target_weight REAL,
+                fitness_goal TEXT,
+                target_date TEXT,
+                daily_protein REAL DEFAULT 120,
+                daily_water REAL DEFAULT 3.0,
+                daily_calorie REAL,
+                workouts_per_week INTEGER DEFAULT 4,
+                target_duration INTEGER
+            )
+        """.trimIndent())
+
+        // 7. Activity Logs table
+        db.execSQL("""
+            CREATE TABLE $TABLE_ACTIVITY_LOGS (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT NOT NULL,
+                date TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                title TEXT NOT NULL,
+                detail TEXT NOT NULL,
+                numeric_value REAL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX idx_activity_logs_date ON $TABLE_ACTIVITY_LOGS(date)")
+
         // Add some default exercises
         db.execSQL("INSERT INTO $TABLE_EXERCISES (name) VALUES ('Incline bench press')")
         db.execSQL("INSERT INTO $TABLE_EXERCISES (name) VALUES ('Flat bench press')")
@@ -81,8 +113,34 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Safe upgrade: Do not drop tables. 
-        // In the future, add migrations here using db.execSQL("ALTER TABLE ...")
+        if (oldVersion < 6) {
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS $TABLE_USER_GOALS (
+                    id INTEGER PRIMARY KEY DEFAULT 1,
+                    current_weight REAL,
+                    target_weight REAL,
+                    fitness_goal TEXT,
+                    target_date TEXT,
+                    daily_protein REAL DEFAULT 120,
+                    daily_water REAL DEFAULT 3.0,
+                    daily_calorie REAL,
+                    workouts_per_week INTEGER DEFAULT 4,
+                    target_duration INTEGER
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS $TABLE_ACTIVITY_LOGS (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    detail TEXT NOT NULL,
+                    numeric_value REAL
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_activity_logs_date ON $TABLE_ACTIVITY_LOGS(date)")
+        }
     }
 
     override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -363,10 +421,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     fun getWorkoutCountsBetween(from: String, to: String): Map<String, Int> {
         val map = mutableMapOf<String, Int>()
         val query = """
-            SELECT date, COUNT(*) as count 
-            FROM $TABLE_WORKOUT_SESSIONS 
-            WHERE date BETWEEN ? AND ?
-            GROUP BY date
+            SELECT s.date, COUNT(e.id) as count 
+            FROM $TABLE_WORKOUT_SESSIONS s
+            JOIN $TABLE_WORKOUT_ENTRIES e ON s.id = e.session_id
+            WHERE s.date BETWEEN ? AND ?
+            GROUP BY s.date
         """.trimIndent()
         val cursor = readableDatabase.rawQuery(query, arrayOf(from, to))
         cursor.use {
@@ -511,5 +570,119 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             "metrics" to allMetrics,
             "workouts" to allWorkouts.map { it.first }
         )
+    }
+
+    // --- User Goal Methods ---
+    fun getUserGoal(): UserGoal? {
+        val cursor = readableDatabase.query(
+            TABLE_USER_GOALS,
+            null,
+            "id = 1",
+            null, null, null, null
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                val currentWeight = if (it.isNull(it.getColumnIndexOrThrow("current_weight"))) null else it.getFloat(it.getColumnIndexOrThrow("current_weight"))
+                val targetWeight = if (it.isNull(it.getColumnIndexOrThrow("target_weight"))) null else it.getFloat(it.getColumnIndexOrThrow("target_weight"))
+                val fitnessGoalName = it.getString(it.getColumnIndexOrThrow("fitness_goal"))
+                val targetDate = it.getString(it.getColumnIndexOrThrow("target_date"))
+                val dailyProtein = it.getFloat(it.getColumnIndexOrThrow("daily_protein"))
+                val dailyWater = it.getFloat(it.getColumnIndexOrThrow("daily_water"))
+                val dailyCalorie = if (it.isNull(it.getColumnIndexOrThrow("daily_calorie"))) null else it.getFloat(it.getColumnIndexOrThrow("daily_calorie"))
+                val workoutsPerWeek = it.getInt(it.getColumnIndexOrThrow("workouts_per_week"))
+                val targetDuration = if (it.isNull(it.getColumnIndexOrThrow("target_duration"))) null else it.getInt(it.getColumnIndexOrThrow("target_duration"))
+
+                return UserGoal(
+                    currentWeight = currentWeight,
+                    targetWeight = targetWeight,
+                    fitnessGoal = FitnessGoal.fromName(fitnessGoalName),
+                    targetDate = targetDate,
+                    dailyProteinTarget = if (dailyProtein > 0) dailyProtein else 120f,
+                    dailyWaterTarget = if (dailyWater > 0) dailyWater else 3.0f,
+                    dailyCalorieTarget = dailyCalorie,
+                    workoutsPerWeek = if (workoutsPerWeek > 0) workoutsPerWeek else 4,
+                    targetWorkoutDurationMinutes = targetDuration
+                )
+            }
+        }
+        return null
+    }
+
+    fun saveUserGoal(goal: UserGoal) {
+        val db = writableDatabase
+        val cv = ContentValues().apply {
+            put("id", 1)
+            put("current_weight", goal.currentWeight)
+            put("target_weight", goal.targetWeight)
+            put("fitness_goal", goal.fitnessGoal.name)
+            put("target_date", goal.targetDate)
+            put("daily_protein", goal.dailyProteinTarget)
+            put("daily_water", goal.dailyWaterTarget)
+            put("daily_calorie", goal.dailyCalorieTarget)
+            put("workouts_per_week", goal.workoutsPerWeek)
+            put("target_duration", goal.targetWorkoutDurationMinutes)
+        }
+        db.insertWithOnConflict(TABLE_USER_GOALS, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    // --- Activity Log Methods ---
+    fun insertActivityLog(log: ActivityLogItem): Long {
+        val db = writableDatabase
+        val cv = ContentValues().apply {
+            put("type", log.type.name)
+            put("date", log.date)
+            put("timestamp", log.timestamp)
+            put("title", log.title)
+            put("detail", log.detail)
+            put("numeric_value", log.numericValue)
+        }
+        return db.insert(TABLE_ACTIVITY_LOGS, null, cv)
+    }
+
+    fun getActivityLogsForDate(date: String): List<ActivityLogItem> {
+        val list = mutableListOf<ActivityLogItem>()
+        val cursor = readableDatabase.query(
+            TABLE_ACTIVITY_LOGS,
+            null,
+            "date = ?",
+            arrayOf(date),
+            null, null, "id DESC"
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                val id = it.getLong(it.getColumnIndexOrThrow("id"))
+                val typeStr = it.getString(it.getColumnIndexOrThrow("type"))
+                val type = try { ActivityType.valueOf(typeStr) } catch (_: Exception) { ActivityType.NOTE }
+                val time = it.getString(it.getColumnIndexOrThrow("timestamp"))
+                val title = it.getString(it.getColumnIndexOrThrow("title"))
+                val detail = it.getString(it.getColumnIndexOrThrow("detail"))
+                val numVal = if (it.isNull(it.getColumnIndexOrThrow("numeric_value"))) null else it.getFloat(it.getColumnIndexOrThrow("numeric_value"))
+
+                list.add(ActivityLogItem(id, type, time, date, title, detail, numVal))
+            }
+        }
+        return list
+    }
+
+    // --- Weight History Methods ---
+    fun getWeightHistory(fromDate: String): List<WeightEntry> {
+        val list = mutableListOf<WeightEntry>()
+        val cursor = readableDatabase.query(
+            TABLE_HEALTH_METRICS,
+            arrayOf("rowid", "date", "body_weight"),
+            "date >= ? AND body_weight > 0",
+            arrayOf(fromDate),
+            null, null, "date ASC"
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                list.add(WeightEntry(
+                    id = it.getLong(0),
+                    date = it.getString(1),
+                    weightKg = it.getFloat(2)
+                ))
+            }
+        }
+        return list
     }
 }

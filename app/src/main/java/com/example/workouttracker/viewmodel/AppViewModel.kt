@@ -10,12 +10,22 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import kotlinx.coroutines.withContext
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val db = DatabaseHelper(application)
     private val gson = Gson()
+
+    private val _userGoal = mutableStateOf<UserGoal?>(null)
+    val userGoal: State<UserGoal?> = _userGoal
+
+    private val _hasCompletedOnboarding = mutableStateOf(false)
+    val hasCompletedOnboarding: State<Boolean> = _hasCompletedOnboarding
 
     private val _todayWeight = mutableStateOf<Float?>(null)
     val todayWeight: State<Float?> = _todayWeight
@@ -34,6 +44,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _todayNotes = mutableStateOf<String?>(null)
     val todayNotes: State<String?> = _todayNotes
+
+    private val _todayTimeline = mutableStateOf<List<ActivityLogItem>>(emptyList())
+    val todayTimeline: State<List<ActivityLogItem>> = _todayTimeline
+
+    private val _weightHistory = mutableStateOf<List<WeightEntry>>(emptyList())
+    val weightHistory: State<List<WeightEntry>> = _weightHistory
 
     private val _dayNotes = mutableStateOf<String?>(null)
     val dayNotes: State<String?> = _dayNotes
@@ -66,12 +82,36 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val weekCardioCounts: State<Map<String, Int>> = _weekCardioCounts
 
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+    private val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
 
     init {
+        loadUserGoal()
         refreshToday()
         refreshExercises()
         loadRecentWorkouts()
         loadWeekMetrics()
+        loadWeightHistory(30)
+    }
+
+    fun loadUserGoal() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val goal = db.getUserGoal()
+            withContext(Dispatchers.Main) {
+                _userGoal.value = goal ?: UserGoal()
+                _hasCompletedOnboarding.value = goal != null
+            }
+        }
+    }
+
+    fun saveUserGoal(goal: UserGoal) {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.saveUserGoal(goal)
+            withContext(Dispatchers.Main) {
+                _userGoal.value = goal
+                _hasCompletedOnboarding.value = true
+            }
+            refreshToday()
+        }
     }
 
     fun refreshToday() {
@@ -82,6 +122,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val workoutCount = workouts.filter { it.first.exerciseId != null }.size
             val lastWeight = db.getLatestWeight()
             val session = db.getSessionForDate(today)
+            val activityLogs = db.getActivityLogsForDate(today)
 
             withContext(Dispatchers.Main) {
                 _todayWater.value = metrics.water
@@ -90,7 +131,97 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 _lastKnownWeight.value = lastWeight
                 _todayWorkouts.value = workoutCount
                 _todayNotes.value = session?.notes
+                _todayTimeline.value = activityLogs
             }
+        }
+    }
+
+    fun loadWeightHistory(days: Int = 30) {
+        val fromDate = LocalDate.now().minusDays(days.toLong()).format(formatter)
+        viewModelScope.launch(Dispatchers.IO) {
+            val history = db.getWeightHistory(fromDate)
+            withContext(Dispatchers.Main) {
+                _weightHistory.value = history
+            }
+        }
+    }
+
+    fun addWaterIncrement(amountL: Float, date: String = LocalDate.now().format(formatter)) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = db.getDailyMetrics(date)
+            val newWater = current.water + amountL
+            db.updateHealthMetrics(current.copy(water = newWater))
+
+            val now = LocalTime.now().format(timeFormatter)
+            val detail = if (amountL >= 1.0f) String.format(Locale.US, "+%.1f L", amountL) else String.format(Locale.US, "+%.0f ml", amountL * 1000)
+            db.insertActivityLog(
+                ActivityLogItem(
+                    type = ActivityType.WATER,
+                    timestamp = now,
+                    date = date,
+                    title = "Water",
+                    detail = detail,
+                    numericValue = amountL
+                )
+            )
+
+            refreshToday()
+            loadWorkoutsForDate(date)
+        }
+    }
+
+    fun addProteinIncrement(amountG: Float, date: String = LocalDate.now().format(formatter)) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = db.getDailyMetrics(date)
+            val newProtein = current.protein + amountG
+            db.updateHealthMetrics(current.copy(protein = newProtein))
+
+            val now = LocalTime.now().format(timeFormatter)
+            db.insertActivityLog(
+                ActivityLogItem(
+                    type = ActivityType.PROTEIN,
+                    timestamp = now,
+                    date = date,
+                    title = "Protein",
+                    detail = String.format(Locale.US, "+%.0f g", amountG),
+                    numericValue = amountG
+                )
+            )
+
+            refreshToday()
+            loadWorkoutsForDate(date)
+        }
+    }
+
+    fun logWeight(weightKg: Float, date: String = LocalDate.now().format(formatter)) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val current = db.getDailyMetrics(date)
+            db.updateHealthMetrics(current.copy(bodyWeight = weightKg))
+
+            val now = LocalTime.now().format(timeFormatter)
+            db.insertActivityLog(
+                ActivityLogItem(
+                    type = ActivityType.WEIGHT,
+                    timestamp = now,
+                    date = date,
+                    title = "Weight",
+                    detail = String.format(Locale.US, "%.1f kg", weightKg),
+                    numericValue = weightKg
+                )
+            )
+
+            // Update current goal currentWeight if set
+            val goal = db.getUserGoal()
+            if (goal != null) {
+                db.saveUserGoal(goal.copy(currentWeight = weightKg))
+                withContext(Dispatchers.Main) {
+                    _userGoal.value = goal.copy(currentWeight = weightKg)
+                }
+            }
+
+            refreshToday()
+            loadWeightHistory(30)
+            loadWorkoutsForDate(date)
         }
     }
 
@@ -167,13 +298,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadWeekMetrics(weekOffset: Int = 0) {
-        val endOfWeek = LocalDate.now().plusWeeks(weekOffset.toLong())
-        val startOfWeek = endOfWeek.minusDays(6)
+        val targetDate = LocalDate.now().plusWeeks(weekOffset.toLong())
+        
+        // Metrics use continuous rolling 7 days (baki k liye thik hai)
+        val rollingEnd = targetDate
+        val rollingStart = rollingEnd.minusDays(6)
+
+        // Cardio and exercise use Monday to Sunday week
+        val mondayOfWeek = targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val sundayOfWeek = mondayOfWeek.plusDays(6)
         
         viewModelScope.launch(Dispatchers.IO) {
-            val metrics = db.getMetricsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
-            val workoutCounts = db.getWorkoutCountsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
-            val cardioCounts = db.getCardioWorkoutCountsBetween(startOfWeek.format(formatter), endOfWeek.format(formatter))
+            val metrics = db.getMetricsBetween(rollingStart.format(formatter), rollingEnd.format(formatter))
+            val workoutCounts = db.getWorkoutCountsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
+            val cardioCounts = db.getCardioWorkoutCountsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
             withContext(Dispatchers.Main) {
                 _weekMetrics.value = metrics
                 _weekWorkoutCounts.value = workoutCounts
@@ -210,16 +348,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val sessionId = db.getOrCreateSessionId(date)
             val exId = db.getOrCreateExerciseId(exerciseName)
             
-            // For cardio, we just store the first record as a single set for now
             val sets = if (isCardio) listOfNotNull(setRecords.firstOrNull()) else setRecords
             
             db.insertWorkout(sessionId, exId, sets)
+
+            val now = LocalTime.now().format(timeFormatter)
+            val setCount = sets.size
+            db.insertActivityLog(
+                ActivityLogItem(
+                    type = ActivityType.WORKOUT,
+                    timestamp = now,
+                    date = date,
+                    title = "Workout",
+                    detail = "$exerciseName ($setCount set${if (setCount > 1) "s" else ""})"
+                )
+            )
             
             refreshToday()
             refreshExercises()
             loadRecentWorkouts()
-            
-            // If we replaced an entry, we might need to refresh the day log if it's currently showing
             loadWorkoutsForDate(date)
         }
     }
@@ -241,16 +388,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val current = db.getDailyMetrics(date)
-            db.updateHealthMetrics(
-                HealthMetric(
-                    date = date,
-                    water = water ?: current.water,
-                    protein = protein ?: current.protein,
-                    bodyWeight = weight ?: current.bodyWeight
-                )
+            val updated = HealthMetric(
+                date = date,
+                water = water ?: current.water,
+                protein = protein ?: current.protein,
+                bodyWeight = weight ?: current.bodyWeight
             )
-            refreshToday()
-            loadWorkoutsForDate(date)
+            db.updateHealthMetrics(updated)
+
+            if (weight != null && weight != current.bodyWeight) {
+                logWeight(weight, date)
+            } else {
+                refreshToday()
+                loadWorkoutsForDate(date)
+            }
         }
     }
 

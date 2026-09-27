@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -84,7 +83,15 @@ fun AppNav(viewModel: AppViewModel) {
                         onNavigateReport = { navController.navigate("report") },
                         onNavigateThisWeek = { navController.navigate("this_week") },
                         onNavigateHistory = { navController.navigate("history") },
-                        onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") }
+                        onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") },
+                        onNavigateGoalSetup = { navController.navigate("goal_setup") }
+                    )
+                }
+                composable("goal_setup") {
+                    GoalSetupScreen(
+                        viewModel = viewModel,
+                        onDone = { navController.popBackStack() },
+                        onBack = { navController.popBackStack() }
                     )
                 }
                 composable("add_workout") {

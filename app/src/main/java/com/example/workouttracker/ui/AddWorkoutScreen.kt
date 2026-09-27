@@ -74,21 +74,35 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(suggestions) { exercise ->
-                            Box(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(InputBackground)
                                     .clickable {
                                         exerciseName = exercise
                                         showAllExercisesDialog = false
                                         isDropdownVisible = false
                                     }
-                                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(exercise, color = Color.White, fontSize = 15.sp)
+                                Text(
+                                    text = exercise,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Select",
+                                    color = AccentPurple,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -243,7 +257,7 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                                     DropdownItem("+ Create \"$exerciseName\"", color = AccentPurple) {
                                         isDropdownVisible = false
                                     }
-                                    DropdownItem("View all exercises", color = Color.White) {
+                                    DropdownItem("View all exercises", color = AccentPurple) {
                                         isDropdownVisible = false
                                         showAllExercisesDialog = true
                                     }
