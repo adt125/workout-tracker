@@ -104,11 +104,18 @@ fun WeightTrendChart(
                         .height(120.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No weight records for this range",
-                        color = MutedText,
-                        fontSize = 13.sp
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text("⚖", fontSize = 20.sp)
+                        Text(
+                            text = "No weight records for this range",
+                            color = MutedText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             } else if (weightEntries.size == 1) {
                 Box(

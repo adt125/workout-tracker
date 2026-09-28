@@ -30,7 +30,7 @@ fun BottomNavigationBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 24.dp, start = 20.dp, end = 20.dp)
+            .padding(top = 16.dp, bottom = 24.dp, start = 20.dp, end = 20.dp)
             .height(84.dp)
             .clip(RoundedCornerShape(42.dp))
             .background(CardBackground)

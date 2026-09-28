@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.workouttracker.data.DaySummary
@@ -22,6 +23,52 @@ import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
+@Composable
+fun EmptyStateView(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: String = "🏋️"
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardBackground)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AppBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(icon, fontSize = 24.sp)
+            }
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    color = MutedText,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,8 +99,17 @@ fun ThisWeekScreen(viewModel: AppViewModel, onNavigateDayLog: (String) -> Unit, 
         }
 
         if (summaries.isEmpty()) {
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text("No activity recorded this week yet", color = TextSecondary)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                EmptyStateView(
+                    title = "No Activity Recorded",
+                    subtitle = "Workouts, water, or weight logged this week will appear here.",
+                    icon = "📅"
+                )
             }
         } else {
             LazyColumn(

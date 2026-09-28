@@ -336,11 +336,10 @@ fun DashboardScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (recentWorkouts.isEmpty()) {
-                            Text(
-                                "No workout logs yet",
-                                color = MutedText,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                            EmptyStateView(
+                                title = "No Recent Workout Logs",
+                                subtitle = "Log a workout to track your performance.",
+                                icon = "📜"
                             )
                         } else {
                             recentWorkouts.take(6).forEach { workoutPair ->

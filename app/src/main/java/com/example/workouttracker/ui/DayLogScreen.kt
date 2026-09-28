@@ -151,14 +151,11 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
 
             if (workouts.isEmpty()) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("No logs for this day", color = TextSecondary)
-                    }
+                    EmptyStateView(
+                        title = "No Workouts Logged",
+                        subtitle = "No workout logs recorded for this date.",
+                        icon = "🏋️"
+                    )
                 }
             } else {
                 items(workouts) { pair ->

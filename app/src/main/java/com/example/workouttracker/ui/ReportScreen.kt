@@ -339,12 +339,19 @@ fun ReportSection(
                 }
             } else if (chartType == ChartType.LINE) {
                 if (nonZeroValues.isEmpty()) {
-                    Text(
-                        "No weight logged this week",
-                        color = MutedText,
-                        fontSize = 14.sp,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text("⚖", fontSize = 20.sp)
+                        Text(
+                            "No weight logged this week",
+                            color = MutedText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 } else {
                     // Line chart layout with Y-axis scale on left and weight labels above points
                     val minW = (nonZeroValues.minOrNull() ?: 0f) - 0.5f
