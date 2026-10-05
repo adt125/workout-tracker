@@ -11,7 +11,7 @@ import com.google.gson.reflect.TypeToken
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
     companion object {
         private const val DATABASE_NAME = "workout_db"
-        private const val DATABASE_VERSION = 6
+        private const val DATABASE_VERSION = 7
 
         private const val TABLE_EXERCISES = "exercises"
         private const val TABLE_HEALTH_METRICS = "health_metrics"
@@ -141,6 +141,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             """.trimIndent())
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_activity_logs_date ON $TABLE_ACTIVITY_LOGS(date)")
         }
+        if (oldVersion < 7) {
+            mergeDuplicateExercises(db)
+        }
     }
 
     override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -172,6 +175,71 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             }
         }
         return list
+    }
+
+    /**
+     * Merges duplicate exercise records that have the same name (case-insensitive / trimmed).
+     * Re-links all existing workout_entries referencing duplicate exercise IDs to the primary exercise ID,
+     * and deletes the duplicate records from the exercises table.
+     */
+    fun mergeDuplicateExercises(database: SQLiteDatabase? = null) {
+        val db = database ?: writableDatabase
+        db.beginTransaction()
+        try {
+            val cursor = db.query(TABLE_EXERCISES, arrayOf("id", "name"), null, null, null, null, "id ASC")
+            val exercises = mutableListOf<Exercise>()
+            cursor.use {
+                while (it.moveToNext()) {
+                    exercises.add(Exercise(it.getInt(0), it.getString(1)))
+                }
+            }
+
+            val grouped = exercises.groupBy { it.name.trim().lowercase() }
+
+            for ((_, group) in grouped) {
+                if (group.size > 1) {
+                    val primary = group.first()
+                    val primaryId = primary.id
+                    val duplicateIds = group.drop(1).map { it.id }
+
+                    for (dupId in duplicateIds) {
+                        val cv = ContentValues().apply {
+                            put("exercise_id", primaryId)
+                        }
+                        db.update(TABLE_WORKOUT_ENTRIES, cv, "exercise_id = ?", arrayOf(dupId.toString()))
+                        db.delete(TABLE_EXERCISES, "id = ?", arrayOf(dupId.toString()))
+                    }
+
+                    val cv = ContentValues().apply {
+                        put("name", primary.name.trim())
+                    }
+                    db.update(TABLE_EXERCISES, cv, "id = ?", arrayOf(primaryId.toString()))
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            if (db.inTransaction()) {
+                db.endTransaction()
+            }
+        }
+    }
+
+    /**
+     * Manually merges a specific duplicate exercise (removeId) into a target exercise (keepId).
+     */
+    fun mergeExercisePair(keepId: Int, removeId: Int) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val cv = ContentValues().apply { put("exercise_id", keepId) }
+            db.update(TABLE_WORKOUT_ENTRIES, cv, "exercise_id = ?", arrayOf(removeId.toString()))
+            db.delete(TABLE_EXERCISES, "id = ?", arrayOf(removeId.toString()))
+            db.setTransactionSuccessful()
+        } finally {
+            if (db.inTransaction()) {
+                db.endTransaction()
+            }
+        }
     }
 
     // --- Session methods ---

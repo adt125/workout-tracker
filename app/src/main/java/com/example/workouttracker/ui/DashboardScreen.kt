@@ -246,7 +246,8 @@ fun DashboardScreen(
                     target = proteinTarget,
                     unit = "g",
                     icon = "💊",
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onClick = { showProteinDialog = true }
                 )
                 GoalProgressCard(
                     title = "WATER",
@@ -254,7 +255,8 @@ fun DashboardScreen(
                     target = waterTarget,
                     unit = "L",
                     icon = "💧",
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onClick = { showWaterDialog = true }
                 )
             }
 
@@ -269,8 +271,6 @@ fun DashboardScreen(
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickAddButton(text = "Add Water", icon = "💧", modifier = Modifier.fillMaxWidth()) { showWaterDialog = true }
-                    QuickAddButton(text = "Add Protein", icon = "💊", modifier = Modifier.fillMaxWidth()) { showProteinDialog = true }
                     QuickAddButton(text = "Log Workout", icon = "🏋️", modifier = Modifier.fillMaxWidth()) { onNavigateAddWorkout() }
                 }
             }
@@ -378,7 +378,8 @@ fun GoalProgressCard(
     target: Float,
     unit: String,
     icon: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     val progress = if (target > 0) (current / target).coerceIn(0f, 1f) else 0f
     val percentage = (progress * 100).toInt()
@@ -388,6 +389,7 @@ fun GoalProgressCard(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(CardBackground)
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
             .padding(16.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

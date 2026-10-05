@@ -16,6 +16,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
+import kotlin.math.abs
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val db = DatabaseHelper(application)
@@ -149,11 +150,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun addWaterIncrement(amountL: Float, date: String = LocalDate.now().format(formatter)) {
         viewModelScope.launch(Dispatchers.IO) {
             val current = db.getDailyMetrics(date)
-            val newWater = current.water + amountL
+            val newWater = (current.water + amountL).coerceAtLeast(0f)
             db.updateHealthMetrics(current.copy(water = newWater))
 
             val now = LocalTime.now().format(timeFormatter)
-            val detail = if (amountL >= 1.0f) String.format(Locale.US, "+%.1f L", amountL) else String.format(Locale.US, "+%.0f ml", amountL * 1000)
+            val absAmount = abs(amountL)
+            val detail = if (amountL >= 0) {
+                if (amountL >= 1.0f) String.format(Locale.US, "+%.1f L", amountL)
+                else String.format(Locale.US, "+%.0f ml", amountL * 1000)
+            } else {
+                if (absAmount >= 1.0f) String.format(Locale.US, "-%.1f L", absAmount)
+                else String.format(Locale.US, "-%.0f ml", absAmount * 1000)
+            }
             db.insertActivityLog(
                 ActivityLogItem(
                     type = ActivityType.WATER,
@@ -173,17 +181,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun addProteinIncrement(amountG: Float, date: String = LocalDate.now().format(formatter)) {
         viewModelScope.launch(Dispatchers.IO) {
             val current = db.getDailyMetrics(date)
-            val newProtein = current.protein + amountG
+            val newProtein = (current.protein + amountG).coerceAtLeast(0f)
             db.updateHealthMetrics(current.copy(protein = newProtein))
 
             val now = LocalTime.now().format(timeFormatter)
+            val absAmount = abs(amountG)
+            val detail = if (amountG >= 0) {
+                String.format(Locale.US, "+%.0f g", amountG)
+            } else {
+                String.format(Locale.US, "-%.0f g", absAmount)
+            }
             db.insertActivityLog(
                 ActivityLogItem(
                     type = ActivityType.PROTEIN,
                     timestamp = now,
                     date = date,
                     title = "Protein",
-                    detail = String.format(Locale.US, "+%.0f g", amountG),
+                    detail = detail,
                     numericValue = amountG
                 )
             )
@@ -326,10 +340,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshExercises() {
         viewModelScope.launch(Dispatchers.IO) {
+            db.mergeDuplicateExercises()
             val exercises = db.getAllExercises().map { it.name }
             withContext(Dispatchers.Main) {
                 _exerciseSuggestions.value = exercises
             }
+        }
+    }
+
+    fun mergeDuplicateExercises() {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.mergeDuplicateExercises()
+            refreshExercises()
+            loadRecentWorkouts()
         }
     }
 
