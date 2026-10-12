@@ -147,7 +147,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addWaterIncrement(amountL: Float, date: String = LocalDate.now().format(formatter)) {
+    fun addWaterIncrement(amountL: Float, date: String = LocalDate.now().format(formatter), onLogged: ((Long) -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             val current = db.getDailyMetrics(date)
             val newWater = (current.water + amountL).coerceAtLeast(0f)
@@ -162,7 +162,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 if (absAmount >= 1.0f) String.format(Locale.US, "-%.1f L", absAmount)
                 else String.format(Locale.US, "-%.0f ml", absAmount * 1000)
             }
-            db.insertActivityLog(
+            val logId = db.insertActivityLog(
                 ActivityLogItem(
                     type = ActivityType.WATER,
                     timestamp = now,
@@ -175,10 +175,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
             refreshToday()
             loadWorkoutsForDate(date)
+            withContext(Dispatchers.Main) {
+                onLogged?.invoke(logId)
+            }
         }
     }
 
-    fun addProteinIncrement(amountG: Float, date: String = LocalDate.now().format(formatter)) {
+    fun addProteinIncrement(amountG: Float, date: String = LocalDate.now().format(formatter), onLogged: ((Long) -> Unit)? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             val current = db.getDailyMetrics(date)
             val newProtein = (current.protein + amountG).coerceAtLeast(0f)
@@ -191,7 +194,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 String.format(Locale.US, "-%.0f g", absAmount)
             }
-            db.insertActivityLog(
+            val logId = db.insertActivityLog(
                 ActivityLogItem(
                     type = ActivityType.PROTEIN,
                     timestamp = now,
@@ -204,6 +207,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
             refreshToday()
             loadWorkoutsForDate(date)
+            withContext(Dispatchers.Main) {
+                onLogged?.invoke(logId)
+            }
+        }
+    }
+
+    fun undoActivityLog(logId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            db.undoActivityLog(logId)
+            refreshToday()
+            loadWeightHistory(30)
         }
     }
 

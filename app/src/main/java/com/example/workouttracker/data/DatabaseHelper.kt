@@ -707,6 +707,55 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return db.insert(TABLE_ACTIVITY_LOGS, null, cv)
     }
 
+    fun undoActivityLog(logId: Long) {
+        val db = writableDatabase
+        val cursor = db.query(
+            TABLE_ACTIVITY_LOGS,
+            null,
+            "id = ?",
+            arrayOf(logId.toString()),
+            null, null, null
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                val typeStr = it.getString(it.getColumnIndexOrThrow("type"))
+                val date = it.getString(it.getColumnIndexOrThrow("date"))
+                val numVal = if (it.isNull(it.getColumnIndexOrThrow("numeric_value"))) null else it.getFloat(it.getColumnIndexOrThrow("numeric_value"))
+
+                if (numVal != null && numVal != 0f) {
+                    val current = getDailyMetrics(date)
+                    when (typeStr) {
+                        ActivityType.WATER.name -> {
+                            val newWater = (current.water - numVal).coerceAtLeast(0f)
+                            updateHealthMetrics(current.copy(water = newWater))
+                        }
+                        ActivityType.PROTEIN.name -> {
+                            val newProtein = (current.protein - numVal).coerceAtLeast(0f)
+                            updateHealthMetrics(current.copy(protein = newProtein))
+                        }
+                        ActivityType.WEIGHT.name -> {
+                            val prevCursor = db.query(
+                                TABLE_ACTIVITY_LOGS,
+                                arrayOf("numeric_value"),
+                                "date = ? AND type = ? AND id != ?",
+                                arrayOf(date, ActivityType.WEIGHT.name, logId.toString()),
+                                null, null, "id DESC", "1"
+                            )
+                            var prevWeight = 0f
+                            prevCursor.use { pc ->
+                                if (pc.moveToFirst()) {
+                                    prevWeight = pc.getFloat(0)
+                                }
+                            }
+                            updateHealthMetrics(current.copy(bodyWeight = prevWeight))
+                        }
+                    }
+                }
+                db.delete(TABLE_ACTIVITY_LOGS, "id = ?", arrayOf(logId.toString()))
+            }
+        }
+    }
+
     fun getActivityLogsForDate(date: String): List<ActivityLogItem> {
         val list = mutableListOf<ActivityLogItem>()
         val cursor = readableDatabase.query(
