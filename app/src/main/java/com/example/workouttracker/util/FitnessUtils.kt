@@ -1,5 +1,6 @@
 package com.example.workouttracker.util
 
+import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.data.WeightEntry
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -40,7 +41,7 @@ fun weightChange7d(entries: List<WeightEntry>, today: LocalDate): Double? {
         try {
             val parsedDate = LocalDate.parse(entry.date)
             parsedDate to entry.weightKg.toDouble()
-        } catch (e: DateTimeParseException) {
+        } catch (_: DateTimeParseException) {
             null
         }
     }
@@ -67,4 +68,71 @@ fun relativeDay(date: LocalDate, today: LocalDate): String {
         daysDiff > 1L -> "$daysDiff days ago"
         else -> date.toString()
     }
+}
+
+sealed class ExerciseDelta {
+    object None : ExerciseDelta()
+    data class TopWeightUp(val diffKg: Double) : ExerciseDelta()
+    data class RepsUp(val diffReps: Int) : ExerciseDelta()
+    data class VolumeUp(val percent: Int) : ExerciseDelta()
+    object Same : ExerciseDelta()
+    data class Lower(val desc: String) : ExerciseDelta()
+}
+
+/**
+ * Calculates progress delta between current session and previous session.
+ */
+fun progressDelta(currentSets: List<SetRecord>, previousSets: List<SetRecord>): ExerciseDelta {
+    if (previousSets.isEmpty()) return ExerciseDelta.None
+
+    val currentTop = currentSets.filter { it.weight != null && it.reps != null }
+        .maxWithOrNull(compareBy<SetRecord> { it.weight!! }.thenBy { it.reps!! })
+
+    val previousTop = previousSets.filter { it.weight != null && it.reps != null }
+        .maxWithOrNull(compareBy<SetRecord> { it.weight!! }.thenBy { it.reps!! })
+
+    if (currentTop == null || previousTop == null) return ExerciseDelta.None
+
+    val curWeight = currentTop.weight!!.toDouble()
+    val prevWeight = previousTop.weight!!.toDouble()
+    val curReps = currentTop.reps!!
+    val prevReps = previousTop.reps!!
+
+    // 1. Top weight higher
+    if (curWeight > prevWeight) {
+        val diff = curWeight - prevWeight
+        return ExerciseDelta.TopWeightUp(diff)
+    }
+
+    // 2. Same top weight, more reps at it
+    if (curWeight == prevWeight && curReps > prevReps) {
+        val diff = curReps - prevReps
+        return ExerciseDelta.RepsUp(diff)
+    }
+
+    val curVolume = currentSets.sumOf { (it.weight?.toDouble() ?: 0.0) * (it.reps ?: 0) }
+    val prevVolume = previousSets.sumOf { (it.weight?.toDouble() ?: 0.0) * (it.reps ?: 0) }
+
+    // 3. Same top set, higher total volume
+    if (curWeight == prevWeight && curReps == prevReps && curVolume > prevVolume) {
+        val pct = if (prevVolume > 0) ((curVolume - prevVolume) / prevVolume * 100).toInt() else 0
+        return ExerciseDelta.VolumeUp(pct.coerceAtLeast(1))
+    }
+
+    // 4. Identical
+    if (curWeight == prevWeight && curReps == prevReps && curVolume == prevVolume) {
+        return ExerciseDelta.Same
+    }
+
+    // 5. Lower
+    if (curWeight < prevWeight) {
+        val diff = prevWeight - curWeight
+        return ExerciseDelta.Lower("-${formatWeight(diff)} kg")
+    }
+    if (curWeight == prevWeight && curReps < prevReps) {
+        val diff = prevReps - curReps
+        return ExerciseDelta.Lower("-$diff ${if (diff == 1) "rep" else "reps"}")
+    }
+
+    return ExerciseDelta.Lower("Lower")
 }

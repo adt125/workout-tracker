@@ -1,10 +1,8 @@
 package com.example.workouttracker
 
+import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.data.WeightEntry
-import com.example.workouttracker.util.formatWeight
-import com.example.workouttracker.util.goalProgress
-import com.example.workouttracker.util.relativeDay
-import com.example.workouttracker.util.weightChange7d
+import com.example.workouttracker.util.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -58,5 +56,27 @@ class FitnessUtilsTest {
         assertEquals("Today", relativeDay(LocalDate.of(2026, 10, 12), today))
         assertEquals("Yesterday", relativeDay(LocalDate.of(2026, 10, 11), today))
         assertEquals("3 days ago", relativeDay(LocalDate.of(2026, 10, 9), today))
+    }
+
+    @Test
+    fun testProgressDelta() {
+        val prev = listOf(
+            SetRecord(weight = 20f, reps = 10),
+            SetRecord(weight = 22.5f, reps = 8),
+            SetRecord(weight = 25f, reps = 4)
+        )
+        val curr = listOf(
+            SetRecord(weight = 20f, reps = 12),
+            SetRecord(weight = 22.5f, reps = 10),
+            SetRecord(weight = 25f, reps = 5)
+        )
+        val delta = progressDelta(curr, prev)
+        assertEquals(ExerciseDelta.RepsUp(1), delta)
+
+        val prevHeavier = listOf(SetRecord(weight = 20f, reps = 8))
+        val currHeavier = listOf(SetRecord(weight = 25f, reps = 5))
+        assertEquals(ExerciseDelta.TopWeightUp(5.0), progressDelta(currHeavier, prevHeavier))
+
+        assertEquals(ExerciseDelta.None, progressDelta(curr, emptyList()))
     }
 }

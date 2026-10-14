@@ -13,12 +13,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -26,6 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.workouttracker.data.SetRecord
+import com.example.workouttracker.ui.components.FitCard
+import com.example.workouttracker.ui.components.LabelText
+import com.example.workouttracker.ui.components.PrimaryButton
 import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
 import java.time.LocalDate
@@ -41,9 +48,6 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
 
     // Cardio specific states
     var duration by remember { mutableStateOf("") }
-    var distance by remember { mutableStateOf("") }
-    var speed by remember { mutableStateOf("") }
-    var incline by remember { mutableStateOf("") }
 
     val suggestions by viewModel.exerciseSuggestions
     val filteredSuggestions = suggestions.filter { it.contains(exerciseName, ignoreCase = true) }
@@ -51,21 +55,19 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
 
     if (showAllExercisesDialog) {
         Dialog(onDismissRequest = { showAllExercisesDialog = false }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.7f)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(CardBackground)
-                    .padding(24.dp)
+            FitCard(
+                cornerRadius = 24.dp,
+                padding = PaddingValues(24.dp)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.7f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
                         text = "All Exercises",
-                        color = Color.White,
+                        color = TextHi,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -81,7 +83,7 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(InputBackground)
+                                    .background(Raised)
                                     .clickable {
                                         exerciseName = exercise
                                         showAllExercisesDialog = false
@@ -93,13 +95,13 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                             ) {
                                 Text(
                                     text = exercise,
-                                    color = Color.White,
+                                    color = TextHi,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
                                     text = "Select",
-                                    color = AccentPurple,
+                                    color = MintAccent,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -111,7 +113,7 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                         onClick = { showAllExercisesDialog = false },
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("Close", color = AccentPurple, fontWeight = FontWeight.Bold)
+                        Text("Close", color = MintAccent, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -174,7 +176,7 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White
+                        tint = TextHi
                     )
                 }
                 
@@ -183,18 +185,19 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                         viewModel.deleteWorkout(entryId, workoutDate)
                         onDone()
                     }) {
-                        Text("Delete", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                        Text("Delete", color = Color(0xFFE57373), fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
-            // Tab Bar
+            // Tab Bar (Weights / Cardio)
             if (entryId == null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(CardBackground)
+                        .background(Card)
+                        .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
                         .padding(4.dp)
                 ) {
                     TabItem(
@@ -211,7 +214,7 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("EXERCISE", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                LabelText(text = "EXERCISE")
 
                 // Exercise Input with Dropdown
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -219,8 +222,8 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(InputBackground)
-                            .border(1.dp, if (isDropdownVisible) AccentPurple else MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .background(Raised)
+                            .border(1.dp, if (isDropdownVisible) MintAccent else CardBorder, RoundedCornerShape(12.dp))
                     ) {
                         BasicTextField(
                             value = exerciseName,
@@ -228,12 +231,13 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                                 exerciseName = it
                                 isDropdownVisible = it.isNotEmpty()
                             },
-                            textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
+                            textStyle = TextStyle(color = TextHi, fontSize = 15.sp, fontWeight = FontWeight.Medium),
+                            cursorBrush = SolidColor(TextHi),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             decorationBox = { innerTextField ->
-                                if (exerciseName.isEmpty()) Text("Bench", color = MutedText, fontSize = 15.sp)
+                                if (exerciseName.isEmpty()) Text("Bench press", color = TextLo, fontSize = 15.sp)
                                 innerTextField()
                             }
                         )
@@ -241,11 +245,7 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
 
                     if (isDropdownVisible) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = CardBackground),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        FitCard(padding = PaddingValues(4.dp)) {
                             Column {
                                 filteredSuggestions.forEach { suggestion ->
                                     DropdownItem(suggestion) {
@@ -254,10 +254,10 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                                     }
                                 }
                                 if (!suggestions.any { it.equals(exerciseName, ignoreCase = true) }) {
-                                    DropdownItem("+ Create \"$exerciseName\"", color = AccentPurple) {
+                                    DropdownItem("+ Create \"$exerciseName\"", color = MintAccent) {
                                         isDropdownVisible = false
                                     }
-                                    DropdownItem("View all exercises", color = AccentPurple) {
+                                    DropdownItem("View all exercises", color = MintAccent) {
                                         isDropdownVisible = false
                                         showAllExercisesDialog = true
                                     }
@@ -275,11 +275,12 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("WEIGHT UNIT", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                    LabelText(text = "WEIGHT UNIT")
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(CardBackground)
+                            .background(Card)
+                            .border(1.dp, CardBorder, RoundedCornerShape(8.dp))
                             .padding(4.dp)
                     ) {
                         UnitButton("kg", weightUnit == "kg") { weightUnit = "kg" }
@@ -291,34 +292,62 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("SET", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
-                    Text("WEIGHT (${weightUnit.uppercase()})", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    Text("REPS", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    LabelText(text = "SET", modifier = Modifier.width(28.dp), color = TextLo)
+                    LabelText(text = "WEIGHT (${weightUnit.uppercase()})", modifier = Modifier.weight(1f))
+                    LabelText(text = "REPS", modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(28.dp)) // space for status indicator
                 }
 
                 sets.forEach { set ->
-                    SetRow(set)
+                    SetRow(set) {
+                        sets.remove(set)
+                    }
                 }
 
-                Button(
-                    onClick = { sets.add(WorkoutSetState(sets.size + 1, mutableStateOf(""), mutableStateOf(""))) },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CardBackground)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("+ Add set", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    FitCard(
+                        onClick = { sets.add(WorkoutSetState(sets.size + 1, mutableStateOf(""), mutableStateOf(""))) },
+                        padding = PaddingValues(14.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("+ Add set", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextHi)
+                        }
+                    }
+
+                    FitCard(
+                        onClick = {
+                            val lastSet = sets.lastOrNull()
+                            val w = lastSet?.weight?.value ?: ""
+                            val r = lastSet?.reps?.value ?: ""
+                            sets.add(WorkoutSetState(sets.size + 1, mutableStateOf(w), mutableStateOf(r)))
+                        },
+                        padding = PaddingValues(14.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Copy last set", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextHi)
+                        }
+                    }
                 }
             } else {
                 // Cardio Section
                 CardioField("DURATION (MIN)", duration) { duration = it }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CardioField("DISTANCE (KM)", distance, modifier = Modifier.weight(1f)) { distance = it }
-                    CardioField("AVG SPEED", speed, modifier = Modifier.weight(1f)) { speed = it }
-                }
-                CardioField("INCLINE", incline) { incline = it }
             }
 
-            Button(
+            PrimaryButton(
+                text = if (entryId != null) "Update exercise" else "Add exercise",
                 onClick = {
                     if (selectedTab == "Weights") {
                         val setRecords = sets.mapNotNull { set ->
@@ -357,20 +386,8 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                     }
                     onDone()
                 },
-                enabled = exerciseName.isNotBlank() && (if (selectedTab == "Weights") sets.any { it.weight.value.isNotBlank() && it.reps.value.isNotBlank() } else duration.isNotBlank()),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White, 
-                    contentColor = Color.Black,
-                    disabledContainerColor = Color.White.copy(alpha = 0.3f),
-                    disabledContentColor = Color.Black.copy(alpha = 0.5f)
-                )
-            ) {
-                Text(if (entryId != null) "Update exercise" else "Add exercise", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
+                enabled = exerciseName.isNotBlank() && (if (selectedTab == "Weights") sets.any { it.weight.value.isNotBlank() && it.reps.value.isNotBlank() } else duration.isNotBlank())
+            )
 
             Spacer(modifier = Modifier.height(200.dp))
         }
@@ -381,17 +398,21 @@ data class WorkoutSetState(val id: Int, val weight: MutableState<String>, val re
 
 @Composable
 fun TabItem(text: String, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(10.dp)
+    val bg = if (isSelected) MintAccent else Color.Transparent
+    val txtColor = if (isSelected) Ground else TextLo
+
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isSelected) Color.White else Color.Transparent)
+            .clip(shape)
+            .background(bg)
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = if (isSelected) Color.Black else TextSecondary,
+            color = txtColor,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold
         )
@@ -399,30 +420,34 @@ fun TabItem(text: String, isSelected: Boolean, modifier: Modifier = Modifier, on
 }
 
 @Composable
-fun DropdownItem(text: String, color: Color = Color.White, onClick: () -> Unit) {
+fun DropdownItem(text: String, color: Color = TextHi, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Text(text, color = color, fontSize = 15.sp)
+        Text(text, color = color, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
 fun UnitButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(6.dp)
+    val bg = if (isSelected) MintAccent else Color.Transparent
+    val txtColor = if (isSelected) Ground else TextLo
+
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) Color.White else Color.Transparent)
+            .clip(shape)
+            .background(bg)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = if (isSelected) Color.Black else TextSecondary,
+            color = txtColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
@@ -430,7 +455,9 @@ fun UnitButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun SetRow(set: WorkoutSetState) {
+fun SetRow(set: WorkoutSetState, onDelete: () -> Unit) {
+    val isComplete = set.weight.value.isNotBlank() && set.reps.value.isNotBlank()
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -438,7 +465,7 @@ fun SetRow(set: WorkoutSetState) {
     ) {
         Text(
             text = "${set.id}",
-            color = TextSecondary,
+            color = TextLo,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.width(28.dp),
@@ -446,6 +473,33 @@ fun SetRow(set: WorkoutSetState) {
         )
         EditableInputBox(value = set.weight.value, onValueChange = { set.weight.value = it }, modifier = Modifier.weight(1f))
         EditableInputBox(value = set.reps.value, onValueChange = { set.reps.value = it }, modifier = Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .size(28.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isComplete) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Complete",
+                    tint = MintAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Remove set",
+                        tint = TextLo,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -454,17 +508,18 @@ fun EditableInputBox(value: String, onValueChange: (String) -> Unit, modifier: M
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(InputBackground)
-            .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+            .background(Raised)
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
     ) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
+            textStyle = TextStyle(color = TextHi, fontSize = 15.sp, fontWeight = FontWeight.Medium),
+            cursorBrush = SolidColor(TextHi),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
     }
 }
@@ -472,23 +527,26 @@ fun EditableInputBox(value: String, onValueChange: (String) -> Unit, modifier: M
 @Composable
 fun CardioField(label: String, value: String, modifier: Modifier = Modifier, onValueChange: (String) -> Unit) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        LabelText(text = label)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(InputBackground)
-                .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                .background(Raised)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
         ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 15.sp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    textStyle = TextStyle(color = TextHi, fontSize = 15.sp, fontWeight = FontWeight.Medium),
+                    cursorBrush = SolidColor(TextHi),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+            }
         }
     }
 }

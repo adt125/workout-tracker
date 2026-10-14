@@ -82,6 +82,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _weekCardioCounts = mutableStateOf<Map<String, Int>>(emptyMap())
     val weekCardioCounts: State<Map<String, Int>> = _weekCardioCounts
 
+    private val _workoutDatesForMonth = mutableStateOf<Set<String>>(emptySet())
+    val workoutDatesForMonth: State<Set<String>> = _workoutDatesForMonth
+
+    fun loadWorkoutDatesForMonth(yearMonth: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dates = db.getWorkoutDatesForMonth(yearMonth)
+            withContext(Dispatchers.Main) {
+                _workoutDatesForMonth.value = dates
+            }
+        }
+    }
+
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
     private val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
 

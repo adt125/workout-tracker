@@ -504,6 +504,23 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return map
     }
 
+    fun getWorkoutDatesForMonth(yearMonth: String): Set<String> {
+        val dates = mutableSetOf<String>()
+        val query = """
+            SELECT DISTINCT s.date 
+            FROM $TABLE_WORKOUT_SESSIONS s
+            JOIN $TABLE_WORKOUT_ENTRIES e ON s.id = e.session_id
+            WHERE s.date LIKE ?
+        """.trimIndent()
+        val cursor = readableDatabase.rawQuery(query, arrayOf("$yearMonth%"))
+        cursor.use {
+            while (it.moveToNext()) {
+                dates.add(it.getString(0))
+            }
+        }
+        return dates
+    }
+
     fun getCardioWorkoutCountsBetween(from: String, to: String): Map<String, Int> {
         val map = mutableMapOf<String, Int>()
         val query = """

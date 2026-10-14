@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.WaterDrop
@@ -66,7 +67,10 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,7 +83,9 @@ import com.example.workouttracker.ui.components.PrimaryButton
 import com.example.workouttracker.ui.components.StatTile
 import com.example.workouttracker.ui.components.UndoSnackbarHost
 import com.example.workouttracker.ui.theme.BigNumberStyle
+import com.example.workouttracker.ui.theme.Ground
 import com.example.workouttracker.ui.theme.MintAccent
+import com.example.workouttracker.ui.theme.PrimaryButtonBrush
 import com.example.workouttracker.ui.theme.ProgressBrush
 import com.example.workouttracker.ui.theme.Raised
 import com.example.workouttracker.ui.theme.ScreenDateStyle
@@ -114,6 +120,7 @@ fun DashboardScreen(
     val protein by viewModel.todayProtein
     val todayNotes by viewModel.todayNotes
     val recentWorkouts by viewModel.recentWorkouts
+    val todayWorkouts by viewModel.todayWorkouts
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -330,13 +337,6 @@ fun DashboardScreen(
                 }
             }
 
-            // Primary Action: Log Workout Button
-            PrimaryButton(
-                text = "Log workout",
-                onClick = onNavigateAddWorkout,
-                leadingIcon = Icons.Default.Add
-            )
-
             // Weight Card
             val latestWeightValue = todayWeight ?: lastKnownWeight
             FitCard {
@@ -391,13 +391,21 @@ fun DashboardScreen(
 
                         val relativeText = relativeDay(latestEntryDate, todayDate)
                         val change7d = weightChange7d(weightHistory, todayDate)
-                        val changeText = if (change7d != null) {
-                            val sign = if (change7d >= 0) "+" else ""
-                            " · $sign${formatWeight(change7d)} kg this week"
-                        } else ""
+
+                        val annotatedWeightText = buildAnnotatedString {
+                            append("Logged $relativeText")
+                            if (change7d != null && change7d != 0.0) {
+                                val sign = if (change7d >= 0.0) "+" else ""
+                                val changeColor = if (change7d < 0.0) Color(0xFFEF5350) else Color(0xFF66BB6A)
+                                append(" · ")
+                                withStyle(SpanStyle(color = changeColor)) {
+                                    append("$sign${formatWeight(change7d)} kg this week")
+                                }
+                            }
+                        }
 
                         Text(
-                            text = "Logged $relativeText$changeText",
+                            text = annotatedWeightText,
                             style = SecondaryTextStyle,
                             color = TextLo,
                             fontSize = 12.sp
@@ -416,6 +424,112 @@ fun DashboardScreen(
                 }
             }
 
+            // Today's progress section title
+            Text(
+                text = "Today's progress",
+                color = TextHi,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Workout Card inside Today's progress
+            FitCard(
+                onClick = onNavigateAddWorkout,
+                padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Raised),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.FitnessCenter,
+                                contentDescription = "Workout",
+                                tint = MintAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            LabelText(text = "WORKOUT")
+                            Text(
+                                text = if (todayWorkouts > 0) "$todayWorkouts exercise${if (todayWorkouts > 1) "s" else ""} logged today" else "No workout yet",
+                                color = TextHi,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            val lastWorkout = recentWorkouts.firstOrNull()
+                            if (lastWorkout != null) {
+                                Text(
+                                    text = "Last: ${lastWorkout.first.date}",
+                                    color = TextLo,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Compact Log button
+                    Button(
+                        onClick = onNavigateAddWorkout,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(PrimaryButtonBrush)
+                    ) {
+                        Text(
+                            text = "Log",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Today's Notes Row (full width)
+            FitCard(
+                onClick = { showNotesDialog = true },
+                padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.EditNote,
+                        contentDescription = "Notes",
+                        tint = TextLo,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    val noteText = todayNotes?.lines()?.firstOrNull { it.isNotBlank() } ?: "Add a note for today..."
+                    Text(
+                        text = noteText,
+                        color = if (todayNotes.isNull_or_blank()) TextLo else TextHi,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             // Protein & Water Nutrition Tiles
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -431,13 +545,13 @@ fun DashboardScreen(
                     goalValueText = String.format(Locale.US, "%.0f g", proteinTarget),
                     progress = proteinProgress,
                     remainingText = if (proteinRem > 0) String.format(Locale.US, "%.0f g left", proteinRem) else "Goal reached",
-                    chip1Label = "+20",
+                    chip1Label = "+20g",
                     onChip1Click = {
                         viewModel.addProteinIncrement(20f) { logId ->
                             triggerUndoSnackbar("+20 g protein logged", logId)
                         }
                     },
-                    chip2Label = "+25",
+                    chip2Label = "+25g",
                     onChip2Click = {
                         viewModel.addProteinIncrement(25f) { logId ->
                             triggerUndoSnackbar("+25 g protein logged", logId)
@@ -457,13 +571,13 @@ fun DashboardScreen(
                     goalValueText = String.format(Locale.US, "%.1f L", waterTarget),
                     progress = waterProgress,
                     remainingText = if (waterRem > 0) String.format(Locale.US, "%.1f L left", waterRem) else "Goal reached",
-                    chip1Label = "+250",
+                    chip1Label = "+250ml",
                     onChip1Click = {
                         viewModel.addWaterIncrement(0.25f) { logId ->
                             triggerUndoSnackbar("+250 ml water logged", logId)
                         }
                     },
-                    chip2Label = "+500",
+                    chip2Label = "+500ml",
                     onChip2Click = {
                         viewModel.addWaterIncrement(0.5f) { logId ->
                             triggerUndoSnackbar("+500 ml water logged", logId)
@@ -472,32 +586,6 @@ fun DashboardScreen(
                     onTileClick = { showWaterDialog = true },
                     modifier = Modifier.weight(1f)
                 )
-            }
-
-            // Today's Notes Row
-            FitCard(
-                onClick = { showNotesDialog = true },
-                padding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.EditNote,
-                        contentDescription = "Notes",
-                        tint = TextLo,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    val noteText = todayNotes?.lines()?.firstOrNull { it.isNotBlank() } ?: "Add a note for today..."
-                    Text(
-                        text = noteText,
-                        color = if (todayNotes.isNull_or_blank()) TextLo else TextHi,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1
-                    )
-                }
             }
 
             // Recent Workout Logs Section
