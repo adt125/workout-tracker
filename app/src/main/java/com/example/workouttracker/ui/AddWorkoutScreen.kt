@@ -62,6 +62,8 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
                         .fillMaxHeight(0.7f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {

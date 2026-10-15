@@ -109,6 +109,7 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+
                 .background(AppBackground)
                 .padding(16.dp)
         ) {

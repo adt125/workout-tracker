@@ -34,6 +34,8 @@ fun EmptyStateView(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBackground)
             .padding(24.dp),

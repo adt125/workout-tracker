@@ -1,5 +1,7 @@
 package com.example.workouttracker.ui
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.example.workouttracker.ui.components.FitBottomNav
@@ -14,5 +16,7 @@ fun BottomNavigationBar(
         currentRoute = currentRoute,
         onNavigate = onNavigate,
         modifier = modifier
+            .statusBarsPadding()
+            .navigationBarsPadding()
     )
 }

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.collections.firstOrNull
 import com.example.workouttracker.data.WeightEntry
 import com.example.workouttracker.ui.theme.*
 import java.util.Locale
@@ -41,6 +42,8 @@ fun WeightTrendChart(
 
     Box(
         modifier = modifier
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .clip(RoundedCornerShape(16.dp))
             .background(CardBackground)
             .padding(16.dp)
