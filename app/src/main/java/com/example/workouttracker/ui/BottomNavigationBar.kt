@@ -16,7 +16,6 @@ fun BottomNavigationBar(
         currentRoute = currentRoute,
         onNavigate = onNavigate,
         modifier = modifier
-            .statusBarsPadding()
             .navigationBarsPadding()
     )
 }
