@@ -72,12 +72,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.workouttracker.data.WeightEntry
+import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.ui.components.FitCard
 import com.example.workouttracker.ui.components.FitProgressBar
 import com.example.workouttracker.ui.components.LabelText
@@ -227,47 +229,60 @@ fun DashboardScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp)
-                .padding(top = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Top Header & Share
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+            // Fixed Top Header & Share
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppBackground)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    LabelText(text = "TODAY")
-                    val dateFormatted = todayDate.format(DateTimeFormatter.ofPattern("EEE, d MMM"))
-                    Text(
-                        text = dateFormatted,
-                        style = ScreenDateStyle
-                    )
-                }
-
-                IconButton(
-                    onClick = {
-                        val json = viewModel.getBackupDataJson()
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, "Workout Tracker Backup")
-                            putExtra(Intent.EXTRA_TEXT, json)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Backup Workout Data"))
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Share,
-                        contentDescription = "Share",
-                        tint = TextLo
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        LabelText(text = "TODAY")
+                        val dateFormatted = todayDate.format(DateTimeFormatter.ofPattern("EEE, d MMM"))
+                        Text(
+                            text = dateFormatted,
+                            style = ScreenDateStyle
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            val json = viewModel.getBackupDataJson()
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "Workout Tracker Backup")
+                                putExtra(Intent.EXTRA_TEXT, json)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Backup Workout Data"))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Share,
+                            contentDescription = "Share",
+                            tint = TextLo
+                        )
+                    }
                 }
             }
+
+            // Scrollable Content
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
 
             // Goal Strip
             val goal = userGoal
@@ -664,6 +679,7 @@ fun DashboardScreen(
             // 100 dp bottom padding for floating bottom nav bar
             Spacer(modifier = Modifier.height(100.dp))
         }
+        }
 
         // Snackbar Host floating above nav
         UndoSnackbarHost(
@@ -689,8 +705,18 @@ fun RecentLogItem(name: String, date: String, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(name, color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-        Text(date, color = TextLo, fontSize = 12.sp)
+        Text(
+            text = name,
+            color = TextHi,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp)
+        )
+        Text(date, color = TextLo, fontSize = 12.sp, maxLines = 1)
     }
 }
 

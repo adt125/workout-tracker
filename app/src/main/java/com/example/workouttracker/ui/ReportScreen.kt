@@ -80,72 +80,85 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val cardioDaysCompleted = mondayToSundayDays.count { (weekCardioCounts[it.format(DateTimeFormatter.ISO_LOCAL_DATE)] ?: 0) > 0 }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Fixed Top Header & Week Selector
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AppBackground)
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            Text(
-                text = "Reports",
-                color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = { weekOffset-- },
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(CardBackground, RoundedCornerShape(8.dp))
-                ) {
-                    Text("<", color = Color.White, fontWeight = FontWeight.Bold)
-                }
+                Text(
+                    text = "Reports",
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = if (weekOffset == 0) "This week" else if (weekOffset == -1) "Last week" else "$rangeStart - $rangeEnd",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (weekOffset != 0 && weekOffset != -1) {
-                        // Already showing range
-                    } else {
-                        Text(
-                            text = "$rangeStart - $rangeEnd",
-                            color = TextSecondary,
-                            fontSize = 10.sp
-                        )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = { weekOffset-- },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(CardBackground, RoundedCornerShape(8.dp))
+                    ) {
+                        Text("<", color = Color.White, fontWeight = FontWeight.Bold)
                     }
-                }
 
-                IconButton(
-                    onClick = { if (weekOffset < 0) weekOffset++ },
-                    enabled = weekOffset < 0,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(
-                            if (weekOffset < 0) CardBackground else CardBackground.copy(alpha = 0.5f),
-                            RoundedCornerShape(8.dp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (weekOffset == 0) "This week" else if (weekOffset == -1) "Last week" else "$rangeStart - $rangeEnd",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
                         )
-                ) {
-                    Text(">", color = if (weekOffset < 0) Color.White else MutedText, fontWeight = FontWeight.Bold)
+                        if (weekOffset != 0 && weekOffset != -1) {
+                            // Already showing range
+                        } else {
+                            Text(
+                                text = "$rangeStart - $rangeEnd",
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { if (weekOffset < 0) weekOffset++ },
+                        enabled = weekOffset < 0,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                if (weekOffset < 0) CardBackground else CardBackground.copy(alpha = 0.5f),
+                                RoundedCornerShape(8.dp)
+                            )
+                    ) {
+                        Text(">", color = if (weekOffset < 0) Color.White else MutedText, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
+
+        // Scrollable content
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
 
         ReportSection(
             title = "WORKOUT SESSIONS",
@@ -198,6 +211,7 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
         )
 
         Spacer(modifier = Modifier.height(100.dp))
+    }
     }
 }
 

@@ -43,11 +43,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.workouttracker.data.DaySummary
+import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.data.WorkoutEntry
 import com.example.workouttracker.ui.components.DeltaChip
@@ -97,65 +99,77 @@ fun HistoryScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 16.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Top Header & Month Switcher
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Fixed Top Header & Month Switcher
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AppBackground)
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.size(36.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = TextHi
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = TextHi
+                        )
+                    }
+                    Text(
+                        text = "History",
+                        style = ScreenTitleStyle
                     )
                 }
-                Text(
-                    text = "History",
-                    style = ScreenTitleStyle
-                )
-            }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                IconButton(
-                    onClick = { visibleMonth = visibleMonth.minusMonths(1) },
-                    modifier = Modifier.size(36.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = TextHi)
-                }
-                Text(
-                    text = visibleMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)),
-                    color = TextHi,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(
-                    onClick = { visibleMonth = visibleMonth.plusMonths(1) },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = TextHi)
+                    IconButton(
+                        onClick = { visibleMonth = visibleMonth.minusMonths(1) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month", tint = TextHi)
+                    }
+                    Text(
+                        text = visibleMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)),
+                        color = TextHi,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(
+                        onClick = { visibleMonth = visibleMonth.plusMonths(1) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = TextHi)
+                    }
                 }
             }
         }
+
+        // Scrollable content
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
+                .padding(top = 8.dp, bottom = 120.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
 
         // Calendar Card
         FitCard(padding = PaddingValues(16.dp)) {
@@ -322,6 +336,7 @@ fun HistoryScreen(
                 }
             }
         }
+        }
     }
 }
 
@@ -456,7 +471,9 @@ fun HistoryExerciseRow(
                     text = exName,
                     color = TextHi,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = summarySubtitle,
