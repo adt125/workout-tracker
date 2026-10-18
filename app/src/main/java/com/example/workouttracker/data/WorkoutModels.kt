@@ -28,7 +28,9 @@ data class WorkoutSet(
 data class SetRecord(
     val weight: Float? = null,
     val reps: Int? = null,
-    val duration: Int? = null
+    val duration: Int? = null,
+    val averageSpeed: Float? = null,
+    val incline: Float? = null
 )
 
 data class DaySummary(

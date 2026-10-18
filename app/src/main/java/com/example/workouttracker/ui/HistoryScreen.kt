@@ -268,70 +268,75 @@ fun HistoryScreen(
                 summary.date
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = formattedDateHeader,
-                    color = TextHi,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Text(
-                    text = "${summary.workouts.size} exercises",
-                    color = TextLo,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            FitCard(padding = PaddingValues(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formattedDateHeader,
+                        color = TextHi,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = "${summary.workouts.size} exercises",
+                        color = TextLo,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
 
-            // Three small metric tiles: Weight, Water, Protein
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val weightVal = summary.metrics?.bodyWeight?.let { if (it > 0) "${formatWeight(it.toDouble())} kg" else "--" } ?: "--"
-                val waterVal = summary.metrics?.water?.let { String.format(Locale.US, "%.1f L", it) } ?: "0.0 L"
-                val proteinVal = summary.metrics?.protein?.let { String.format(Locale.US, "%.0f g", it) } ?: "0 g"
+                Spacer(modifier = Modifier.height(12.dp))
 
-                MiniStatTile(label = "WEIGHT", value = weightVal, modifier = Modifier.weight(1f))
-                MiniStatTile(label = "WATER", value = waterVal, modifier = Modifier.weight(1f))
-                MiniStatTile(label = "PROTEIN", value = proteinVal, modifier = Modifier.weight(1f))
-            }
+                // Three small metric tiles: Weight, Water, Protein
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val weightVal = summary.metrics?.bodyWeight?.let { if (it > 0) "${formatWeight(it.toDouble())} kg" else "--" } ?: "--"
+                    val waterVal = summary.metrics?.water?.let { String.format(Locale.US, "%.1f L", it) } ?: "0.0 L"
+                    val proteinVal = summary.metrics?.protein?.let { String.format(Locale.US, "%.0f g", it) } ?: "0 g"
 
-            // Exercise list
-            if (summary.workouts.isEmpty()) {
-                FitCard(padding = PaddingValues(20.dp)) {
+                    MiniStatTile(label = "WEIGHT", value = weightVal, modifier = Modifier.weight(1f))
+                    MiniStatTile(label = "WATER", value = waterVal, modifier = Modifier.weight(1f))
+                    MiniStatTile(label = "PROTEIN", value = proteinVal, modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Exercise list
+                if (summary.workouts.isEmpty()) {
                     Text(
                         text = "No workouts logged on this day",
                         color = TextLo,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
-                }
-            } else {
-                val displayedWorkouts = if (showAllExercises) summary.workouts else summary.workouts.take(3)
-                displayedWorkouts.forEach { workoutPair ->
-                    HistoryExerciseRow(
-                        workout = workoutPair.first,
-                        exName = workoutPair.second,
-                        viewModel = viewModel,
-                        onEdit = { onNavigateDayLog(summary.date) }
-                    )
-                }
-
-                if (summary.workouts.size > 3 && !showAllExercises) {
-                    TextButton(
-                        onClick = { showAllExercises = true },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text(
-                            text = "Show ${summary.workouts.size - 3} more",
-                            color = MintAccent,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                } else {
+                    val displayedWorkouts = if (showAllExercises) summary.workouts else summary.workouts.take(3)
+                    displayedWorkouts.forEach { workoutPair ->
+                        HistoryExerciseRow(
+                            workout = workoutPair.first,
+                            exName = workoutPair.second,
+                            viewModel = viewModel,
+                            onEdit = { onNavigateDayLog(summary.date) }
                         )
+                    }
+
+                    if (summary.workouts.size > 3 && !showAllExercises) {
+                        TextButton(
+                            onClick = { showAllExercises = true },
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) {
+                            Text(
+                                text = "Show ${summary.workouts.size - 3} more",
+                                color = MintAccent,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -454,9 +459,11 @@ fun HistoryExerciseRow(
         "${sets.size} sets"
     }
 
-    FitCard(
-        onClick = { isExpanded = !isExpanded },
-        padding = PaddingValues(14.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { isExpanded = !isExpanded }
+            .padding(vertical = 10.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

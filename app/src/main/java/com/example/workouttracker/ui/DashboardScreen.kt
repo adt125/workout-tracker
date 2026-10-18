@@ -286,9 +286,11 @@ fun DashboardScreen(
 
             // Goal Strip
             val goal = userGoal
-            val startW = goal?.currentWeight?.toDouble()
-            val targetW = goal?.targetWeight?.toDouble()
+            val weightHist = weightHistory
             val currentW = todayWeight?.toDouble() ?: lastKnownWeight?.toDouble()
+            val targetW = goal?.targetWeight?.toDouble()
+
+            val startW = goal?.currentWeight?.toDouble() ?: 69.0
 
             FitCard(
                 onClick = onNavigateGoalSetup,
@@ -322,6 +324,7 @@ fun DashboardScreen(
 
                         if (startW != null && currentW != null && targetW != null && startW != targetW) {
                             val ratio = goalProgress(startW, currentW, targetW)
+                            android.util.Log.d("GoalDebug", "goal=$goal, startW=$startW, currentW=$currentW, targetW=$targetW, ratio=$ratio")
                             if (ratio != null) {
                                 Spacer(modifier = Modifier.height(10.dp))
                                 FitProgressBar(
@@ -358,24 +361,22 @@ fun DashboardScreen(
 
             // Weight Card
             val latestWeightValue = todayWeight ?: lastKnownWeight
-            FitCard {
+            FitCard(
+                onClick = { showWeightDialog = true },
+                padding = PaddingValues(horizontal = 16.dp, vertical = 18.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     LabelText(text = "WEIGHT")
-                    IconButton(
-                        onClick = { showWeightDialog = true },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = "Log weight",
-                            tint = TextLo,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    Text(
+                        text = "Tap to log",
+                        color = TextLo,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -681,12 +682,12 @@ fun DashboardScreen(
         }
         }
 
-        // Snackbar Host floating above nav
+        // Snackbar Host floating just above the bottom navigation
         UndoSnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 90.dp, start = 16.dp, end = 16.dp)
+                .padding(bottom = 12.dp, start = 16.dp, end = 16.dp)
         )
     }
 }

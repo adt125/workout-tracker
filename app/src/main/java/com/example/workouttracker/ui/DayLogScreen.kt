@@ -30,6 +30,9 @@ import androidx.compose.foundation.text.BasicTextField
 import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.data.WorkoutEntry
 import com.example.workouttracker.ui.theme.*
+import com.example.workouttracker.util.ExerciseDelta
+import com.example.workouttracker.util.formatWeight
+import com.example.workouttracker.util.progressDelta
 import com.example.workouttracker.viewmodel.AppViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -208,6 +211,20 @@ fun WorkoutLogCard(workout: WorkoutEntry, exName: String, viewModel: AppViewMode
         }
     }
 
+    val delta = progressDelta(sets, previousSets)
+    val deltaText = when (delta) {
+        is ExerciseDelta.TopWeightUp -> "+${formatWeight(delta.diffKg)} kg"
+        is ExerciseDelta.RepsUp -> "+${delta.diffReps} ${if (delta.diffReps == 1) "rep" else "reps"}"
+        is ExerciseDelta.VolumeUp -> "+${delta.percent}% vol"
+        is ExerciseDelta.Same -> "Same"
+        is ExerciseDelta.Lower -> delta.desc
+        ExerciseDelta.None -> null
+    }
+    val deltaColor = when (delta) {
+        is ExerciseDelta.Same, is ExerciseDelta.Lower -> TextSecondary
+        else -> AccentGreen
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -236,29 +253,13 @@ fun WorkoutLogCard(workout: WorkoutEntry, exName: String, viewModel: AppViewMode
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (sets.isNotEmpty() && previousSets.isNotEmpty()) {
-                    val currentAvg = sets.mapNotNull { it.weight }.average()
-                    val prevAvg = previousSets.mapNotNull { it.weight }.average()
-
-                    if (!currentAvg.isNaN() && !prevAvg.isNaN()) {
-                        val comparisonText = when {
-                            currentAvg > prevAvg -> "Heavier"
-                            currentAvg < prevAvg -> "Lighter"
-                            else -> "Same"
-                        }
-                        val comparisonColor = when {
-                            currentAvg > prevAvg -> AccentGreen
-                            currentAvg < prevAvg -> Color(0xFFD32F2F)
-                            else -> TextSecondary
-                        }
-                        
-                        Text(
-                            text = "• $comparisonText than last time",
-                            color = comparisonColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                if (deltaText != null) {
+                    Text(
+                        text = deltaText,
+                        color = deltaColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
             

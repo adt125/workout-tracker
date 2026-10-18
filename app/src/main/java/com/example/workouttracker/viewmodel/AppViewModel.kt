@@ -250,15 +250,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
 
-            // Update current goal currentWeight if set
-            val goal = db.getUserGoal()
-            if (goal != null) {
-                db.saveUserGoal(goal.copy(currentWeight = weightKg))
-                withContext(Dispatchers.Main) {
-                    _userGoal.value = goal.copy(currentWeight = weightKg)
-                }
-            }
-
             refreshToday()
             loadWeightHistory(30)
             loadWorkoutsForDate(date)

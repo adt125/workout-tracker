@@ -49,6 +49,8 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
 
     // Cardio specific states
     var duration by remember { mutableStateOf("") }
+    var averageSpeed by remember { mutableStateOf("") }
+    var incline by remember { mutableStateOf("") }
 
     val suggestions by viewModel.exerciseSuggestions
     val filteredSuggestions = suggestions.filter { it.contains(exerciseName, ignoreCase = true) }
@@ -146,6 +148,8 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                 if (firstSet?.duration != null) {
                     selectedTab = "Cardio"
                     duration = firstSet.duration.toString()
+                    averageSpeed = firstSet.averageSpeed?.toString() ?: ""
+                    incline = firstSet.incline?.toString() ?: ""
                 } else {
                     selectedTab = "Weights"
                     sets.clear()
@@ -353,6 +357,13 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
             } else {
                 // Cardio Section
                 CardioField("DURATION (MIN)", duration) { duration = it }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CardioField("AVG SPEED (KM/H)", averageSpeed, modifier = Modifier.weight(1f)) { averageSpeed = it }
+                    CardioField("INCLINE (%)", incline, modifier = Modifier.weight(1f)) { incline = it }
+                }
             }
 
             PrimaryButton(
@@ -383,7 +394,9 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                         }
                     } else {
                         val cardioRecord = SetRecord(
-                            duration = duration.toIntOrNull() ?: 0
+                            duration = duration.toIntOrNull() ?: 0,
+                            averageSpeed = averageSpeed.toFloatOrNull(),
+                            incline = incline.toFloatOrNull()
                         )
                         viewModel.addWorkout(
                             exerciseName = exerciseName,
@@ -475,7 +488,7 @@ fun SetRow(set: WorkoutSetState, onDelete: () -> Unit) {
     val isComplete = set.weight.value.isNotBlank() && set.reps.value.isNotBlank()
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
