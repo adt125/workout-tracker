@@ -85,6 +85,7 @@ fun HistoryScreen(
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var daySummary by remember { mutableStateOf<DaySummary?>(null) }
     var showAllExercises by remember { mutableStateOf(false) }
+    val currentMonth = YearMonth.now()
 
     val yearMonthStr = visibleMonth.format(DateTimeFormatter.ofPattern("yyyy-MM"))
 
@@ -151,10 +152,15 @@ fun HistoryScreen(
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(
-                        onClick = { visibleMonth = visibleMonth.plusMonths(1) },
+                        onClick = { if (visibleMonth < currentMonth) visibleMonth = visibleMonth.plusMonths(1) },
+                        enabled = visibleMonth < currentMonth,
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month", tint = TextHi)
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Next month",
+                            tint = if (visibleMonth < currentMonth) TextHi else TextLo.copy(alpha = 0.35f)
+                        )
                     }
                 }
             }
@@ -227,7 +233,7 @@ fun HistoryScreen(
                                     isSelected = isSelected,
                                     isToday = isToday,
                                     isFuture = isFuture,
-                                    onClick = { selectedDate = date }
+                                    onClick = { if (!isFuture) selectedDate = date }
                                 )
                             } else {
                                 Spacer(modifier = Modifier.size(36.dp))
@@ -372,7 +378,7 @@ fun CalendarDayCell(
             .clip(cellShape)
             .background(backgroundColor)
             .border(width = if (isToday && !isSelected) 1.5.dp else 0.dp, color = borderColor, shape = cellShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = !isFuture, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Column(

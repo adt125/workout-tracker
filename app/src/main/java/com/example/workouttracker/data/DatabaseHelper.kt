@@ -147,8 +147,12 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             mergeDuplicateExercises(db)
         }
         if (oldVersion < 8) {
-            db.execSQL("ALTER TABLE $TABLE_WORKOUT_SETS ADD COLUMN average_speed REAL")
-            db.execSQL("ALTER TABLE $TABLE_WORKOUT_SETS ADD COLUMN incline REAL")
+            try {
+                db.execSQL("ALTER TABLE $TABLE_WORKOUT_SETS ADD COLUMN average_speed REAL")
+            } catch (_: Exception) {}
+            try {
+                db.execSQL("ALTER TABLE $TABLE_WORKOUT_SETS ADD COLUMN incline REAL")
+            } catch (_: Exception) {}
         }
     }
 

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -114,7 +115,8 @@ fun DashboardScreen(
     onNavigateThisWeek: () -> Unit,
     onNavigateHistory: () -> Unit,
     onNavigateEditWorkout: (Long) -> Unit,
-    onNavigateGoalSetup: () -> Unit = {}
+    onNavigateGoalSetup: () -> Unit = {},
+    onNavigateNotifications: () -> Unit = {}
 ) {
     val userGoal by viewModel.userGoal
     val todayWeight by viewModel.todayWeight
@@ -253,22 +255,23 @@ fun DashboardScreen(
                         )
                     }
 
-                    IconButton(
-                        onClick = {
-                            val json = viewModel.getBackupDataJson()
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "Workout Tracker Backup")
-                                putExtra(Intent.EXTRA_TEXT, json)
-                            }
-                            context.startActivity(Intent.createChooser(intent, "Backup Workout Data"))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onNavigateNotifications) {
+                            Icon(Icons.Rounded.Notifications, contentDescription = "Notifications", tint = TextLo)
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = "Share",
-                            tint = TextLo
-                        )
+                        IconButton(
+                            onClick = {
+                                val json = viewModel.getBackupDataJson()
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Workout Tracker Backup")
+                                    putExtra(Intent.EXTRA_TEXT, json)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Backup Workout Data"))
+                            }
+                        ) {
+                            Icon(Icons.Rounded.Share, contentDescription = "Share", tint = TextLo)
+                        }
                     }
                 }
             }

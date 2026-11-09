@@ -25,6 +25,7 @@ import androidx.navigation.navArgument
 import com.example.workouttracker.ui.*
 import com.example.workouttracker.ui.theme.WorkoutTrackerTheme
 import com.example.workouttracker.viewmodel.AppViewModel
+import com.example.workouttracker.notifications.AppNotificationManager
 
 class MainActivity : ComponentActivity() {
     private val viewModel: AppViewModel by viewModels()
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
         )
+        AppNotificationManager(this).scheduleAll()
         setContent {
             WorkoutTrackerTheme {
                 AppNav(viewModel)
@@ -86,8 +88,12 @@ fun AppNav(viewModel: AppViewModel) {
                         onNavigateThisWeek = { navController.navigate("this_week") },
                         onNavigateHistory = { navController.navigate("history") },
                         onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") },
-                        onNavigateGoalSetup = { navController.navigate("goal_setup") }
+                        onNavigateGoalSetup = { navController.navigate("goal_setup") },
+                        onNavigateNotifications = { navController.navigate("notifications") }
                     )
+                }
+                composable("notifications") {
+                    NotificationsScreen(onBack = { navController.popBackStack() })
                 }
                 composable("goal_setup") {
                     GoalSetupScreen(
