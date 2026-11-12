@@ -9,565 +9,195 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.workouttracker.data.HealthMetric
+import com.example.workouttracker.ui.components.FitCard
 import com.example.workouttracker.ui.theme.*
+import com.example.workouttracker.util.WeeklyGoalProgress
+import com.example.workouttracker.util.formatWeight
+import com.example.workouttracker.util.weekLabel
+import com.example.workouttracker.util.weekRange
 import com.example.workouttracker.viewmodel.AppViewModel
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 
-enum class ChartType {
-    BAR,
-    LINE,
-    CHECKMARK
-}
+private val DateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+private val RangeFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.US)
+private val DayFormatter = DateTimeFormatter.ofPattern("E", Locale.US)
+private val ShortDays = listOf("M", "T", "W", "T", "F", "S", "S")
 
 @Composable
 fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
-    val weekMetrics by viewModel.weekMetrics
-    val weekWorkoutCounts by viewModel.weekWorkoutCounts
-    val weekCardioCounts by viewModel.weekCardioCounts
-
+    val metrics by viewModel.weekMetrics
+    val workoutCounts by viewModel.weekWorkoutCounts
+    val goal by viewModel.userGoal
     var weekOffset by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(weekOffset) {
-        viewModel.loadWeekMetrics(weekOffset)
-    }
+    LaunchedEffect(weekOffset) { viewModel.loadWeekMetrics(weekOffset) }
 
-    val targetDate = LocalDate.now().plusWeeks(weekOffset.toLong())
+    val range = weekRange(LocalDate.now().plusWeeks(weekOffset.toLong()))
+    val days = (0..6).map { range.start.plusDays(it.toLong()) }
+    val metricsByDate = metrics.associateBy { it.date }
+    val weekMetrics = days.map { metricsByDate[it.format(DateFormatter)] ?: HealthMetric(it.format(DateFormatter)) }
+    val workoutDates = workoutCounts.filterValues { it > 0 }.keys.mapNotNull { runCatching { LocalDate.parse(it) }.getOrNull() }
+    val workoutProgress = com.example.workouttracker.util.weeklyGoalProgress(workoutDates, goal?.workoutsPerWeek ?: 4, range)
 
-    // Metrics use rolling 7 days (baki k liye thik hai)
-    val last7Days = (0..6).map { targetDate.minusDays(it.toLong()) }.reversed()
-    val fullWeekMetrics = last7Days.map { date ->
-        val dateString = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-        weekMetrics.find { it.date == dateString } ?: HealthMetric(date = dateString)
-    }
-
-    // Cardio and exercise use Monday to Sunday week
-    val mondayOfWeek = targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    val sundayOfWeek = mondayOfWeek.plusDays(6)
-    val mondayToSundayDays = (0..6).map { mondayOfWeek.plusDays(it.toLong()) }
-    val mondayToSundayMetrics = mondayToSundayDays.map { date ->
-        val dateString = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-        HealthMetric(date = dateString)
-    }
-
-    val rangeStart = mondayOfWeek.format(DateTimeFormatter.ofPattern("d MMM"))
-    val rangeEnd = sundayOfWeek.format(DateTimeFormatter.ofPattern("d MMM"))
-
-    val avgProtein = if (weekMetrics.isNotEmpty()) weekMetrics.map { it.protein }.average().toFloat() else 0f
-    val avgWater = if (weekMetrics.isNotEmpty()) weekMetrics.map { it.water }.average().toFloat() else 0f
-    val validWeights = weekMetrics.filter { it.bodyWeight > 0 }.map { it.bodyWeight }
-    val avgWeight = if (validWeights.isNotEmpty()) validWeights.average().toFloat() else 0f
-
-    val workoutDaysCompleted = mondayToSundayDays.count { (weekWorkoutCounts[it.format(DateTimeFormatter.ISO_LOCAL_DATE)] ?: 0) > 0 }
-    val cardioDaysCompleted = mondayToSundayDays.count { (weekCardioCounts[it.format(DateTimeFormatter.ISO_LOCAL_DATE)] ?: 0) > 0 }
-
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Fixed Top Header & Week Selector
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(AppBackground)
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Reports",
-                    color = Color.White,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = { weekOffset-- },
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(CardBackground, RoundedCornerShape(8.dp))
-                    ) {
-                        Text("<", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = if (weekOffset == 0) "This week" else if (weekOffset == -1) "Last week" else "$rangeStart - $rangeEnd",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (weekOffset != 0 && weekOffset != -1) {
-                            // Already showing range
-                        } else {
-                            Text(
-                                text = "$rangeStart - $rangeEnd",
-                                color = TextSecondary,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = { if (weekOffset < 0) weekOffset++ },
-                        enabled = weekOffset < 0,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(
-                                if (weekOffset < 0) CardBackground else CardBackground.copy(alpha = 0.5f),
-                                RoundedCornerShape(8.dp)
-                            )
-                    ) {
-                        Text(">", color = if (weekOffset < 0) Color.White else MutedText, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // Scrollable content
+    Column(modifier = Modifier.fillMaxSize().background(Ground)) {
+        TrendsHeader(range, weekLabel(range), weekOffset < 0, { weekOffset-- }, { if (weekOffset < 0) weekOffset++ })
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-
-        ReportSection(
-            title = "WORKOUT SESSIONS",
-            avgValue = "$workoutDaysCompleted / 7 days",
-            avgLabel = "Completed this week",
-            metrics = mondayToSundayMetrics,
-            valueSelector = { weekWorkoutCounts[it.date]?.toFloat() ?: 0f },
-            barColor = ChartCyan,
-            chartType = ChartType.CHECKMARK
-        )
-
-        ReportSection(
-            title = "CARDIO EXERCISES",
-            avgValue = "$cardioDaysCompleted / 7 days",
-            avgLabel = "Completed this week",
-            metrics = mondayToSundayMetrics,
-            valueSelector = { weekCardioCounts[it.date]?.toFloat() ?: 0f },
-            barColor = AccentBlue,
-            chartType = ChartType.CHECKMARK
-        )
-
-        ReportSection(
-            title = "PROTEIN INTAKE",
-            avgValue = String.format(Locale.US, "%.0f g", avgProtein),
-            avgLabel = "Daily Average",
-            metrics = fullWeekMetrics,
-            valueSelector = { it.protein },
-            barColor = ChartPurple,
-            chartType = ChartType.BAR
-        )
-
-        ReportSection(
-            title = "WATER INTAKE",
-            avgValue = String.format(Locale.US, "%.1f L", avgWater),
-            avgLabel = "Daily Average",
-            metrics = fullWeekMetrics,
-            valueSelector = { it.water },
-            barColor = AccentPurple,
-            chartType = ChartType.BAR
-        )
-
-        ReportSection(
-            title = "BODY WEIGHT",
-            avgValue = if (avgWeight > 0) String.format(Locale.US, "%.1f kg", avgWeight) else "-- kg",
-            avgLabel = "Current Average",
-            metrics = fullWeekMetrics,
-            valueSelector = { it.bodyWeight },
-            barColor = AccentPurple,
-            chartType = ChartType.LINE
-        )
-
-        Spacer(modifier = Modifier.height(100.dp))
-    }
-    }
-}
-
-fun formatMetricValue(value: Float, title: String): String {
-    if (value <= 0f) return ""
-    return when {
-        title.contains("PROTEIN", ignoreCase = true) -> "${value.toInt()}g"
-        title.contains("WATER", ignoreCase = true) -> String.format(Locale.US, "%.1fL", value)
-        title.contains("WEIGHT", ignoreCase = true) -> String.format(Locale.US, "%.1f", value)
-        else -> if (value % 1f == 0f) "${value.toInt()}" else String.format(Locale.US, "%.1f", value)
+            WorkoutCard(days, workoutCounts, workoutProgress)
+            MetricCard("PROTEIN", averageText(weekMetrics.map { it.protein }, "g"), "Daily average", weekMetrics.map { it.protein }, goal?.dailyProteinTarget ?: 120f, "g", MintAccent)
+            MetricCard("WATER", averageText(weekMetrics.map { it.water }, "L"), "Daily average", weekMetrics.map { it.water }, goal?.dailyWaterTarget ?: 3f, "L", TealAccent)
+            WeightCard(days, weekMetrics.map { it.bodyWeight }, goal?.targetWeight)
+            Spacer(Modifier.height(90.dp))
+        }
     }
 }
 
 @Composable
-fun ReportSection(
-    title: String,
-    avgValue: String,
-    avgLabel: String,
-    metrics: List<HealthMetric>,
-    valueSelector: (HealthMetric) -> Float,
-    barColor: Color,
-    chartType: ChartType = ChartType.BAR
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    color = TextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = avgValue,
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
+private fun TrendsHeader(range: ClosedRange<LocalDate>, label: String, canAdvance: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("Trends", style = ScreenTitleStyle)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onPrevious, modifier = Modifier.size(36.dp)) { Icon(Icons.Rounded.ChevronLeft, "Previous week", tint = TextHi) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("${range.start.format(RangeFormatter)} – ${range.endInclusive.format(RangeFormatter)}", color = TextHi, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (label.isNotEmpty()) Text(label, color = TextLo, fontSize = 11.sp)
             }
-            Text(
-                text = avgLabel,
-                color = MutedText,
-                fontSize = 12.sp
-            )
+            IconButton(onClick = onNext, enabled = canAdvance, modifier = Modifier.size(36.dp)) { Icon(Icons.Rounded.ChevronRight, "Next week", tint = if (canAdvance) TextHi else TextLo.copy(alpha = .35f)) }
         }
+    }
+}
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (chartType == ChartType.CHECKMARK) 130.dp else 170.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(CardBackground)
-                .padding(14.dp)
-        ) {
-            val weekItems = metrics.takeLast(7)
-            val nonZeroValues = weekItems.map(valueSelector).filter { it > 0 }
-
-            if (weekItems.isEmpty()) {
-                Text(
-                    "No data for this week",
-                    color = MutedText,
-                    fontSize = 14.sp,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (chartType == ChartType.CHECKMARK) {
-                // Checkmark Consistency Row for Workouts and Cardio
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    weekItems.forEach { metric ->
-                        val value = valueSelector(metric)
-                        val isCompleted = value > 0
-
-                        val dateText = try {
-                            LocalDate.parse(metric.date).format(DateTimeFormatter.ofPattern("E"))
-                        } catch (_: Exception) {
-                            ""
-                        }
-                        val dayNum = try {
-                            LocalDate.parse(metric.date).format(DateTimeFormatter.ofPattern("d"))
-                        } catch (_: Exception) {
-                            ""
-                        }
-
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isCompleted) barColor else InputBackground)
-                                    .border(
-                                        1.dp,
-                                        if (isCompleted) Color.Transparent else MutedText.copy(alpha = 0.3f),
-                                        CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isCompleted) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Completed",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(MutedText.copy(alpha = 0.4f))
-                                    )
-                                }
-                            }
-
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = dateText,
-                                    color = if (isCompleted) Color.White else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isCompleted) FontWeight.Bold else FontWeight.Medium
-                                )
-                                Text(
-                                    text = dayNum,
-                                    color = MutedText,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
+@Composable
+private fun WorkoutCard(days: List<LocalDate>, counts: Map<String, Int>, progress: WeeklyGoalProgress) {
+    FitCard(modifier = Modifier.fillMaxWidth()) {
+        CardHeading("WORKOUTS", "Goal: ${progress.goal} / week")
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("${progress.done} / ${progress.goal} days", style = CardNumberStyle)
+            Text(if (progress.met) "Goal met" else "${progress.short} short of goal", color = if (progress.met) Positive else TextLo, fontSize = 12.sp, modifier = Modifier.padding(bottom = 4.dp))
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+            days.forEach { day ->
+                val completed = (counts[day.format(DateFormatter)] ?: 0) > 0
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(if (completed) MintAccent else Raised).border(1.dp, if (completed) MintAccent else CardBorder, CircleShape), Alignment.Center) {
+                        if (completed) Icon(Icons.Rounded.Check, "Workout logged", tint = Ground, modifier = Modifier.size(18.dp))
                     }
+                    Spacer(Modifier.height(6.dp))
+                    Text(day.format(DayFormatter).take(1), color = TextLo, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
-            } else if (chartType == ChartType.LINE) {
-                if (nonZeroValues.isEmpty()) {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text("⚖", fontSize = 20.sp)
-                        Text(
-                            "No weight logged this week",
-                            color = MutedText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                } else {
-                    // Line chart layout with Y-axis scale on left and weight labels above points
-                    val minW = (nonZeroValues.minOrNull() ?: 0f) - 0.5f
-                    val maxW = (nonZeroValues.maxOrNull() ?: 100f) + 0.5f
+            }
+        }
+    }
+}
 
-                    Row(modifier = Modifier.fillMaxSize()) {
-                        // Y-Axis scale column
-                        Column(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .padding(bottom = 18.dp),
-                            verticalArrangement = Arrangement.SpaceBetween,
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            Text(
-                                text = String.format(Locale.US, "%.1f", maxW),
-                                color = TextSecondary,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = String.format(Locale.US, "%.1f", minW),
-                                color = TextSecondary,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+@Composable
+private fun MetricCard(title: String, summary: String, summaryLabel: String, values: List<Float>, goal: Float, unit: String, accent: Color) {
+    FitCard(modifier = Modifier.fillMaxWidth()) {
+        CardHeading(title, summaryLabel)
+        Text(summary, style = CardNumberStyle)
+        Spacer(Modifier.height(10.dp))
+        val description = "$title this week: " + values.mapIndexed { i, value -> "${i + 1} ${metricValue(value, unit)}" }.joinToString(", ")
+        GoalBarChart(values, goal, unit, accent, Modifier.fillMaxWidth().height(142.dp).semantics { contentDescription = description })
+    }
+}
 
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                            ) {
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    val width = size.width
-                                    val height = size.height
-
-                                    val valRange = if (maxW > minW) maxW - minW else 1f
-                                    val colWidth = width / 7f
-
-                                    val points = mutableListOf<Pair<Int, Offset>>()
-
-                                    weekItems.forEachIndexed { index, metric ->
-                                        val valFloat = valueSelector(metric)
-                                        if (valFloat > 0) {
-                                            val x = (index * colWidth) + (colWidth / 2f)
-                                            val y = height - (((valFloat - minW) / valRange) * (height - 24.dp.toPx())) - 12.dp.toPx()
-                                            points.add(index to Offset(x, y))
-                                        }
-                                    }
-
-                                    if (points.size > 1) {
-                                        val linePath = Path().apply {
-                                            moveTo(points.first().second.x, points.first().second.y)
-                                            for (i in 1 until points.size) {
-                                                lineTo(points[i].second.x, points[i].second.y)
-                                            }
-                                        }
-                                        drawPath(
-                                            path = linePath,
-                                            color = barColor,
-                                            style = Stroke(width = 2.5.dp.toPx())
-                                        )
-                                    }
-
-                                    points.forEach { (_, point) ->
-                                        drawCircle(
-                                            color = Color.White,
-                                            radius = 5.dp.toPx(),
-                                            center = point
-                                        )
-                                        drawCircle(
-                                            color = barColor,
-                                            radius = 3.dp.toPx(),
-                                            center = point
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Day labels and daily values below line
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                weekItems.forEach { metric ->
-                                    val valFloat = valueSelector(metric)
-                                    val dateText = try {
-                                        LocalDate.parse(metric.date).format(DateTimeFormatter.ofPattern("E"))
-                                    } catch (_: Exception) {
-                                        ""
-                                    }
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(
-                                            text = if (valFloat > 0) String.format(Locale.US, "%.1f", valFloat) else "-",
-                                            color = if (valFloat > 0) Color.White else MutedText,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = dateText,
-                                            color = TextSecondary,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Bar Chart layout with Y-axis scale on left and daily value labels above bars
-                val maxVal = (weekItems.maxOfOrNull(valueSelector) ?: 1f).coerceAtLeast(1f)
-
-                Row(modifier = Modifier.fillMaxSize()) {
-                    // Y-Axis scale column
-                    Column(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(bottom = 18.dp),
-                        verticalArrangement = Arrangement.SpaceBetween,
-                        horizontalAlignment = Alignment.End
-                    ) {
-                        Text(
-                            text = formatMetricValue(maxVal, title),
-                            color = TextSecondary,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "0",
-                            color = TextSecondary,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        weekItems.forEach { metric ->
-                            val value = valueSelector(metric)
-                            val barHeightFactor = if (maxVal > 0) value / maxVal else 0f
-                            val valueText = formatMetricValue(value, title)
-
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = valueText,
-                                    color = if (value > 0) Color.White else Color.Transparent,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                    contentAlignment = Alignment.BottomCenter
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .fillMaxHeight(barHeightFactor.coerceIn(if (value > 0) 0.08f else 0.02f, 1f))
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(if (value > 0) barColor else InputBackground)
-                                    )
-                                }
-
-                                val dateText = try {
-                                    LocalDate.parse(metric.date).format(DateTimeFormatter.ofPattern("E"))
-                                } catch (_: Exception) {
-                                    ""
-                                }
-                                Text(
-                                    text = dateText,
-                                    color = TextSecondary,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
+@Composable
+private fun GoalBarChart(values: List<Float>, goal: Float, unit: String, accent: Color, modifier: Modifier) {
+    val maxValue = maxOf(goal, values.maxOrNull() ?: 0f, 1f) * 1.18f
+    Row(modifier, verticalAlignment = Alignment.Bottom) {
+        Column(Modifier.width(54.dp).fillMaxHeight(), Arrangement.SpaceBetween) { Text("Goal ${metricValue(goal, unit)}", color = TextLo, fontSize = 9.sp); Text("0", color = TextLo, fontSize = 9.sp) }
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.weight(1f).fillMaxHeight()) {
+            Canvas(Modifier.fillMaxSize()) {
+                val goalY = size.height * (1f - goal / maxValue)
+                drawLine(TextLo.copy(alpha = .65f), androidx.compose.ui.geometry.Offset(0f, goalY), androidx.compose.ui.geometry.Offset(size.width, goalY), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())))
+            }
+            Row(Modifier.fillMaxSize(), Arrangement.SpaceEvenly, Alignment.Bottom) {
+                values.forEachIndexed { index, value ->
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(if (value > 0) metricValue(value, unit) else "–", color = if (value > 0) TextHi else TextLo, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.width(18.dp).height(100.dp * (if (value > 0) (value / maxValue).coerceIn(.04f, 1f) else .04f)).clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)).background(if (value >= goal && value > 0) accent else if (value > 0) accent.copy(alpha = .6f) else Raised))
+                        Spacer(Modifier.height(4.dp))
+                        Text(ShortDays[index], color = TextLo, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun WeightCard(days: List<LocalDate>, values: List<Float>, target: Float?) {
+    val logged = values.mapIndexedNotNull { index, value -> if (value > 0) index to value else null }
+    val latest = logged.lastOrNull()?.second
+    val change = if (logged.size >= 2) logged.last().second - logged.first().second else null
+    val isMovingTowardGoal = target != null && logged.size >= 2 &&
+        kotlin.math.abs(latest!! - target) < kotlin.math.abs(logged.first().second - target)
+    FitCard(modifier = Modifier.fillMaxWidth()) {
+        CardHeading(
+            "BODY WEIGHT",
+            change?.let { signedWeight(it) + " this week" } ?: "Weekly change",
+            if (isMovingTowardGoal) Positive else TextLo
+        )
+        Text(latest?.let { "${formatWeight(it.toDouble())} kg" } ?: "—", style = CardNumberStyle)
+        Spacer(Modifier.height(8.dp))
+        val description = "Body weight this week: " + values.map { if (it > 0) formatWeight(it.toDouble()) + " kg" else "not logged" }.joinToString(", ")
+        WeightChart(days.size, values, target, Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description })
+    }
+}
+
+@Composable
+private fun WeightChart(count: Int, values: List<Float>, target: Float?, modifier: Modifier) {
+    val logged = values.filter { it > 0 }
+    if (logged.isEmpty()) { Text("No weight logged this week", color = TextLo, fontSize = 13.sp, modifier = modifier.padding(top = 36.dp)); return }
+    val min = minOf(logged.minOrNull() ?: 0f, target ?: Float.MAX_VALUE) - .4f
+    val max = maxOf(logged.maxOrNull() ?: 0f, target ?: Float.MIN_VALUE) + .4f
+    Canvas(modifier) {
+        val range = (max - min).coerceAtLeast(.1f)
+        val xStep = size.width / (count - 1).coerceAtLeast(1)
+        fun y(value: Float) = size.height * (1f - (value - min) / range)
+        target?.let { drawLine(TextLo.copy(alpha = .7f), androidx.compose.ui.geometry.Offset(0f, y(it)), androidx.compose.ui.geometry.Offset(size.width, y(it)), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))) }
+        val points = values.mapIndexedNotNull { index, value -> if (value > 0) androidx.compose.ui.geometry.Offset(index * xStep, y(value)) else null }
+        if (points.size > 1) { val path = androidx.compose.ui.graphics.Path().apply { moveTo(points.first().x, points.first().y); points.drop(1).forEach { lineTo(it.x, it.y) } }; drawPath(path, MintAccent, style = Stroke(2.dp.toPx())) }
+        points.forEachIndexed { index, point -> drawCircle(if (index == points.lastIndex) MintAccent else TextHi, 5.dp.toPx(), point) }
+    }
+}
+
+@Composable
+private fun CardHeading(title: String, detail: String, detailColor: Color = TextLo) {
+    Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) { Text(title, style = LabelStyle); Text(detail, color = detailColor, fontSize = 11.sp) }
+}
+
+private fun averageText(values: List<Float>, unit: String): String {
+    val logged = values.filter { it > 0 }
+    if (logged.isEmpty()) return "—"
+    return if (unit == "g") String.format(Locale.US, "%.0f g", logged.average()) else String.format(Locale.US, "%.1f L", logged.average())
+}
+
+private fun metricValue(value: Float, unit: String): String = if (unit == "g") "${value.toInt()} g" else String.format(Locale.US, "%.1f L", value)
+private fun signedWeight(change: Float): String = String.format(Locale.US, "%+.1f kg", change)

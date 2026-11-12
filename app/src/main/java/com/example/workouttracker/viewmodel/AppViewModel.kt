@@ -330,17 +330,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadWeekMetrics(weekOffset: Int = 0) {
         val targetDate = LocalDate.now().plusWeeks(weekOffset.toLong())
-        
-        // Metrics use continuous rolling 7 days (baki k liye thik hai)
-        val rollingEnd = targetDate
-        val rollingStart = rollingEnd.minusDays(6)
-
-        // Cardio and exercise use Monday to Sunday week
         val mondayOfWeek = targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val sundayOfWeek = mondayOfWeek.plusDays(6)
         
         viewModelScope.launch(Dispatchers.IO) {
-            val metrics = db.getMetricsBetween(rollingStart.format(formatter), rollingEnd.format(formatter))
+            val metrics = db.getMetricsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
             val workoutCounts = db.getWorkoutCountsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
             val cardioCounts = db.getCardioWorkoutCountsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
             withContext(Dispatchers.Main) {

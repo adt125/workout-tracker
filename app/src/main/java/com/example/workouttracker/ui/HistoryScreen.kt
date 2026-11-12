@@ -21,13 +21,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -41,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -453,6 +460,11 @@ fun HistoryExerciseRow(
         is ExerciseDelta.Same, is ExerciseDelta.Lower -> DeltaVariant.NEUTRAL
         else -> DeltaVariant.POSITIVE
     }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 90f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "exercise detail chevron rotation"
+    )
 
     val topSetSummary = sets.filter { it.weight != null && it.reps != null }
         .maxWithOrNull(compareBy<SetRecord> { it.weight!! }.thenBy { it.reps!! })
@@ -504,16 +516,30 @@ fun HistoryExerciseRow(
                     DeltaChip(text = deltaChipText, variant = deltaVariant)
                 }
                 Icon(
-                    imageVector = if (isExpanded) Icons.Default.ExpandMore else Icons.Default.ChevronRight,
-                    contentDescription = "Expand",
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
                     tint = TextLo,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(chevronRotation)
                 )
             }
         }
 
         // Expanded view showing current vs previous sets and edit pencil
-        if (isExpanded) {
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(
+                animationSpec = tween(durationMillis = 250)
+            ) + fadeIn(
+                animationSpec = tween(durationMillis = 180)
+            ),
+            exit = shrinkVertically(
+                animationSpec = tween(durationMillis = 220)
+            ) + fadeOut(
+                animationSpec = tween(durationMillis = 120)
+            )
+        ) {
             Spacer(modifier = Modifier.height(12.dp))
             Box(
                 modifier = Modifier

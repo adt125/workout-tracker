@@ -59,6 +59,32 @@ class FitnessUtilsTest {
     }
 
     @Test
+    fun testWeekRangeIsMondayToSunday() {
+        val range = weekRange(LocalDate.of(2026, 10, 11))
+        assertEquals(LocalDate.of(2026, 10, 5), range.start)
+        assertEquals(LocalDate.of(2026, 10, 11), range.endInclusive)
+    }
+
+    @Test
+    fun testWeeklyGoalProgressCountsDistinctPastDates() {
+        val range = weekRange(LocalDate.of(2026, 10, 11))
+        val progress = weeklyGoalProgress(
+            listOf(
+                LocalDate.of(2026, 10, 5),
+                LocalDate.of(2026, 10, 5),
+                LocalDate.of(2026, 10, 7),
+                LocalDate.of(2026, 10, 11)
+            ),
+            goalDays = 4,
+            range = range,
+            today = LocalDate.of(2026, 10, 10)
+        )
+        assertEquals(2, progress.done)
+        assertEquals(2, progress.short)
+        assertEquals(false, progress.met)
+    }
+
+    @Test
     fun testProgressDelta() {
         val prev = listOf(
             SetRecord(weight = 20f, reps = 10),

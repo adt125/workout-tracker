@@ -7,6 +7,8 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
+import java.time.DayOfWeek
+import java.time.temporal.TemporalAdjusters
 
 /**
  * Utility functions specified in Appendix A of Fitness App Redesign guide.
@@ -68,6 +70,43 @@ fun relativeDay(date: LocalDate, today: LocalDate): String {
         daysDiff > 1L -> "$daysDiff days ago"
         else -> date.toString()
     }
+}
+
+/** Returns the ISO calendar week containing [date], Monday through Sunday. */
+fun weekRange(date: LocalDate): ClosedRange<LocalDate> {
+    val monday = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    return monday..monday.plusDays(6)
+}
+
+/** A short label for the calendar week relative to [today]. */
+fun weekLabel(range: ClosedRange<LocalDate>, today: LocalDate = LocalDate.now()): String {
+    return when {
+        today in range -> "This week"
+        today.minusWeeks(1) in range -> "Last week"
+        else -> ""
+    }
+}
+
+data class WeeklyGoalProgress(
+    val done: Int,
+    val goal: Int,
+    val short: Int,
+    val met: Boolean
+)
+
+/** Counts distinct workout dates in the week, ignoring future days as misses. */
+fun weeklyGoalProgress(
+    workoutDates: Iterable<LocalDate>,
+    goalDays: Int,
+    range: ClosedRange<LocalDate>,
+    today: LocalDate = LocalDate.now()
+): WeeklyGoalProgress {
+    val done = workoutDates
+        .filter { it in range && !it.isAfter(today) }
+        .toSet()
+        .size
+    val goal = goalDays.coerceAtLeast(0)
+    return WeeklyGoalProgress(done, goal, (goal - done).coerceAtLeast(0), done >= goal)
 }
 
 sealed class ExerciseDelta {
