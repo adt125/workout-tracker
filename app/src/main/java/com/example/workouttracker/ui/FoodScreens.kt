@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -224,7 +225,7 @@ fun AddMealScreen(viewModel: AppViewModel, onBack: () -> Unit) {
 
 private fun ParsedItem.toEditable() = EditableFood(name, qty, calories.toString(), proteinG.toString(), carbsG.toString(), fatG.toString(), confidence == "low")
 private fun List<EditableFood>.updated(index: Int, update: EditableFood.() -> EditableFood) = toMutableList().also { it[index] = it[index].update() }
-@Composable private fun FoodField(label: String, value: String, numeric: Boolean = false, modifier: Modifier = Modifier, onChange: (String) -> Unit) { OutlinedTextField(value, onChange, modifier, label = { Text(label) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text), textStyle = LocalTextStyle.current.copy(fontSize = 12.sp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextHi, unfocusedTextColor = TextHi, focusedBorderColor = Accent, unfocusedBorderColor = CardBorder, focusedContainerColor = Raised, unfocusedContainerColor = Raised)) }
+@Composable private fun FoodField(label: String, value: String, numeric: Boolean = false, modifier: Modifier = Modifier, onChange: (String) -> Unit) { OutlinedTextField(value, onChange, modifier, label = { Text(label, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start, maxLines = 1, softWrap = false, fontSize = 10.sp) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text), textStyle = LocalTextStyle.current.copy(fontSize = 12.sp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextHi, unfocusedTextColor = TextHi, focusedBorderColor = Accent, unfocusedBorderColor = CardBorder, focusedContainerColor = Raised, unfocusedContainerColor = Raised)) }
 
 @Composable
 fun FoodLogScreen(viewModel: AppViewModel, onBack: () -> Unit, onAddMeal: () -> Unit) {
