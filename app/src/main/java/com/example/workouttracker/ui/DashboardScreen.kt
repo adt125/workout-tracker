@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -116,7 +117,8 @@ fun DashboardScreen(
     onNavigateHistory: () -> Unit,
     onNavigateEditWorkout: (Long) -> Unit,
     onNavigateGoalSetup: () -> Unit = {},
-    onNavigateNotifications: () -> Unit = {}
+    onNavigateNotifications: () -> Unit = {},
+    onNavigateFoodLog: () -> Unit = {}
 ) {
     val userGoal by viewModel.userGoal
     val todayWeight by viewModel.todayWeight
@@ -580,7 +582,7 @@ fun DashboardScreen(
                             triggerUndoSnackbar("+25 g protein logged", logId)
                         }
                     },
-                    onTileClick = { showProteinDialog = true },
+                    onTileClick = onNavigateFoodLog,
                     modifier = Modifier.weight(1f)
                 )
 

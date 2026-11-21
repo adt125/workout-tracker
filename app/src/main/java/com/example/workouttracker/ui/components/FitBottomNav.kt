@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +48,7 @@ val DefaultNavItems = listOf(
     NavItemSpec("dashboard", "Home", Icons.Rounded.Home),
     NavItemSpec("this_week", "Week", Icons.Rounded.CalendarMonth),
     NavItemSpec("history", "History", Icons.Rounded.History),
+    NavItemSpec("food_log", "Food", Icons.Rounded.Restaurant),
     NavItemSpec("report", "Trends", Icons.AutoMirrored.Rounded.TrendingUp)
 )
 

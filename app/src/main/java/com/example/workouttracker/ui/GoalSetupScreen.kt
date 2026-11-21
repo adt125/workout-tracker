@@ -52,6 +52,9 @@ fun GoalSetupScreen(
     var waterInput by remember(currentGoal) {
         mutableStateOf(currentGoal?.dailyWaterTarget?.toString() ?: "3.0")
     }
+    var calorieInput by remember(currentGoal) {
+        mutableStateOf(currentGoal?.dailyCalorieTarget?.toInt()?.toString() ?: "")
+    }
     var workoutsPerWeekInput by remember(currentGoal) {
         mutableStateOf(currentGoal?.workoutsPerWeek?.toString() ?: "4")
     }
@@ -194,6 +197,13 @@ fun GoalSetupScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+            GoalInputField(
+                title = "DAILY CALORIES",
+                unit = "KCAL",
+                value = calorieInput,
+                onValueChange = { calorieInput = it },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             // 4. Workout Target
             GoalInputField(
@@ -215,6 +225,7 @@ fun GoalSetupScreen(
                         fitnessGoal = selectedFitnessGoal,
                         dailyProteinTarget = proteinInput.toFloatOrNull() ?: 120f,
                         dailyWaterTarget = waterInput.toFloatOrNull() ?: 3.0f,
+                        dailyCalorieTarget = calorieInput.toFloatOrNull(),
                         workoutsPerWeek = workoutsPerWeekInput.toIntOrNull() ?: 4
                     )
                     viewModel.saveUserGoal(goal)

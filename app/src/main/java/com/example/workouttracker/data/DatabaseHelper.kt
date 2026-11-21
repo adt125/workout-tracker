@@ -11,7 +11,7 @@ import com.google.gson.reflect.TypeToken
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
     companion object {
         private const val DATABASE_NAME = "workout_db"
-        private const val DATABASE_VERSION = 8
+        private const val DATABASE_VERSION = 10
 
         private const val TABLE_EXERCISES = "exercises"
         private const val TABLE_HEALTH_METRICS = "health_metrics"
@@ -20,6 +20,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val TABLE_WORKOUT_SETS = "workout_sets"
         private const val TABLE_USER_GOALS = "user_goals"
         private const val TABLE_ACTIVITY_LOGS = "activity_logs"
+        private const val TABLE_FOOD_ENTRIES = "food_entry"
+        private const val TABLE_AI_SUMMARIES = "ai_summary"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -108,6 +110,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         """.trimIndent())
         db.execSQL("CREATE INDEX idx_activity_logs_date ON $TABLE_ACTIVITY_LOGS(date)")
 
+        createAiTables(db)
+
         // Add some default exercises
         db.execSQL("INSERT INTO $TABLE_EXERCISES (name) VALUES ('Incline bench press')")
         db.execSQL("INSERT INTO $TABLE_EXERCISES (name) VALUES ('Flat bench press')")
@@ -154,6 +158,87 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 db.execSQL("ALTER TABLE $TABLE_WORKOUT_SETS ADD COLUMN incline REAL")
             } catch (_: Exception) {}
         }
+        if (oldVersion < 9) createAiTables(db)
+        if (oldVersion < 10) {
+            try {
+                db.execSQL("ALTER TABLE $TABLE_FOOD_ENTRIES ADD COLUMN meal_type TEXT NOT NULL DEFAULT 'Meal'")
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun createAiTables(db: SQLiteDatabase) {
+        db.execSQL("""CREATE TABLE IF NOT EXISTS $TABLE_FOOD_ENTRIES (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, name TEXT NOT NULL,
+            qty TEXT NOT NULL, calories INTEGER NOT NULL, protein_g INTEGER NOT NULL,
+            carbs_g INTEGER NOT NULL, fat_g INTEGER NOT NULL, source TEXT NOT NULL, created_at INTEGER NOT NULL,
+            meal_type TEXT NOT NULL DEFAULT 'Meal')""".trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_food_entry_date ON $TABLE_FOOD_ENTRIES(date)")
+        db.execSQL("""CREATE TABLE IF NOT EXISTS $TABLE_AI_SUMMARIES (
+            week_start TEXT PRIMARY KEY, headline TEXT NOT NULL, bullets TEXT NOT NULL, suggestion TEXT NOT NULL)""".trimIndent())
+    }
+
+    fun insertFoodEntries(entries: List<FoodEntry>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            entries.forEach { entry ->
+                val values = ContentValues().apply {
+                    put("date", entry.date); put("name", entry.name); put("qty", entry.qty)
+                    put("calories", entry.calories); put("protein_g", entry.proteinG); put("carbs_g", entry.carbsG)
+                    put("fat_g", entry.fatG); put("source", entry.source); put("created_at", entry.createdAt); put("meal_type", entry.mealType)
+                }
+                db.insert(TABLE_FOOD_ENTRIES, null, values)
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    fun getFoodEntries(date: String): List<FoodEntry> {
+        val result = mutableListOf<FoodEntry>()
+        readableDatabase.query(TABLE_FOOD_ENTRIES, null, "date = ?", arrayOf(date), null, null, "created_at DESC").use { c ->
+            while (c.moveToNext()) result += FoodEntry(c.getLong(c.getColumnIndexOrThrow("id")), c.getString(c.getColumnIndexOrThrow("date")), c.getString(c.getColumnIndexOrThrow("name")), c.getString(c.getColumnIndexOrThrow("qty")), c.getInt(c.getColumnIndexOrThrow("calories")), c.getInt(c.getColumnIndexOrThrow("protein_g")), c.getInt(c.getColumnIndexOrThrow("carbs_g")), c.getInt(c.getColumnIndexOrThrow("fat_g")), c.getString(c.getColumnIndexOrThrow("source")), c.getLong(c.getColumnIndexOrThrow("created_at")), c.getString(c.getColumnIndexOrThrow("meal_type")))
+        }
+        return result
+    }
+
+    fun getFoodEntriesBetween(from: String, to: String): List<FoodEntry> {
+        val result = mutableListOf<FoodEntry>()
+        readableDatabase.query(
+            TABLE_FOOD_ENTRIES,
+            null,
+            "date BETWEEN ? AND ?",
+            arrayOf(from, to),
+            null, null, "date ASC, created_at ASC"
+        ).use { c ->
+            while (c.moveToNext()) {
+                result += FoodEntry(
+                    c.getLong(c.getColumnIndexOrThrow("id")),
+                    c.getString(c.getColumnIndexOrThrow("date")),
+                    c.getString(c.getColumnIndexOrThrow("name")),
+                    c.getString(c.getColumnIndexOrThrow("qty")),
+                    c.getInt(c.getColumnIndexOrThrow("calories")),
+                    c.getInt(c.getColumnIndexOrThrow("protein_g")),
+                    c.getInt(c.getColumnIndexOrThrow("carbs_g")),
+                    c.getInt(c.getColumnIndexOrThrow("fat_g")),
+                    c.getString(c.getColumnIndexOrThrow("source")),
+                    c.getLong(c.getColumnIndexOrThrow("created_at")),
+                    c.getString(c.getColumnIndexOrThrow("meal_type"))
+                )
+            }
+        }
+        return result
+    }
+
+    fun getFoodProtein(date: String): Int = readableDatabase.rawQuery("SELECT COALESCE(SUM(protein_g), 0) FROM $TABLE_FOOD_ENTRIES WHERE date = ?", arrayOf(date)).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+    fun deleteFoodEntry(id: Long) { writableDatabase.delete(TABLE_FOOD_ENTRIES, "id = ?", arrayOf(id.toString())) }
+
+    fun saveAiSummary(summary: AiSummary) {
+        val values = ContentValues().apply { put("week_start", summary.weekStart); put("headline", summary.headline); put("bullets", Gson().toJson(summary.bullets)); put("suggestion", summary.suggestion) }
+        writableDatabase.insertWithOnConflict(TABLE_AI_SUMMARIES, null, values, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+    fun getAiSummary(weekStart: String): AiSummary? = readableDatabase.query(TABLE_AI_SUMMARIES, null, "week_start = ?", arrayOf(weekStart), null, null, null).use { c ->
+        if (!c.moveToFirst()) return@use null
+        AiSummary(c.getString(c.getColumnIndexOrThrow("week_start")), c.getString(c.getColumnIndexOrThrow("headline")), Gson().fromJson(c.getString(c.getColumnIndexOrThrow("bullets")), object : TypeToken<List<String>>() {}.type), c.getString(c.getColumnIndexOrThrow("suggestion")))
     }
 
     override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {

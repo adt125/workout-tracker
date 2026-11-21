@@ -1,0 +1,9 @@
+{
+  "name": "workout-tracker-functions",
+  "engines": { "node": "22" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.1.1"
+  }
+}

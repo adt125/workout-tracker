@@ -40,6 +40,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _todayProtein = mutableStateOf(0f)
     val todayProtein: State<Float> = _todayProtein
 
+    private val _foodEntries = mutableStateOf<List<FoodEntry>>(emptyList())
+    val foodEntries: State<List<FoodEntry>> = _foodEntries
+    private val _aiSummary = mutableStateOf<AiSummary?>(null)
+    val aiSummary: State<AiSummary?> = _aiSummary
+
     private val _todayWorkouts = mutableStateOf(0)
     val todayWorkouts: State<Int> = _todayWorkouts
 
@@ -81,6 +86,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _weekCardioCounts = mutableStateOf<Map<String, Int>>(emptyMap())
     val weekCardioCounts: State<Map<String, Int>> = _weekCardioCounts
+
+    private val _previousWeekMetrics = mutableStateOf<List<HealthMetric>>(emptyList())
+    val previousWeekMetrics: State<List<HealthMetric>> = _previousWeekMetrics
+
+    private val _previousWeekWorkoutCounts = mutableStateOf<Map<String, Int>>(emptyMap())
+    val previousWeekWorkoutCounts: State<Map<String, Int>> = _previousWeekWorkoutCounts
+
+    private val _previousWeekCardioCounts = mutableStateOf<Map<String, Int>>(emptyMap())
+    val previousWeekCardioCounts: State<Map<String, Int>> = _previousWeekCardioCounts
+
+    private val _weekFoodEntries = mutableStateOf<List<FoodEntry>>(emptyList())
+    val weekFoodEntries: State<List<FoodEntry>> = _weekFoodEntries
+
+    private val _previousWeekFoodEntries = mutableStateOf<List<FoodEntry>>(emptyList())
+    val previousWeekFoodEntries: State<List<FoodEntry>> = _previousWeekFoodEntries
 
     private val _workoutDatesForMonth = mutableStateOf<Set<String>>(emptySet())
     val workoutDatesForMonth: State<Set<String>> = _workoutDatesForMonth
@@ -136,10 +156,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val lastWeight = db.getLatestWeight()
             val session = db.getSessionForDate(today)
             val activityLogs = db.getActivityLogsForDate(today)
+            val foodProtein = db.getFoodProtein(today)
 
             withContext(Dispatchers.Main) {
                 _todayWater.value = metrics.water
-                _todayProtein.value = metrics.protein
+                _todayProtein.value = metrics.protein + foodProtein
                 _todayWeight.value = if (metrics.bodyWeight > 0) metrics.bodyWeight else null
                 _lastKnownWeight.value = lastWeight
                 _todayWorkouts.value = workoutCount
@@ -148,6 +169,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun loadFoodEntries(date: String) {
+        viewModelScope.launch(Dispatchers.IO) { val entries = db.getFoodEntries(date); withContext(Dispatchers.Main) { _foodEntries.value = entries } }
+    }
+
+    fun saveFoodEntries(entries: List<FoodEntry>) {
+        viewModelScope.launch(Dispatchers.IO) { db.insertFoodEntries(entries); refreshToday(); loadFoodEntries(entries.firstOrNull()?.date ?: formatter.format(LocalDate.now())) }
+    }
+
+    fun addManualFood(date: String, name: String, qty: String, calories: Int, protein: Int, carbs: Int, fat: Int) {
+        saveFoodEntries(listOf(FoodEntry(date = date, name = name, qty = qty, calories = calories, proteinG = protein, carbsG = carbs, fatG = fat, source = "manual", createdAt = System.currentTimeMillis())))
+    }
+
+    fun deleteFoodEntry(entry: FoodEntry) { viewModelScope.launch(Dispatchers.IO) { db.deleteFoodEntry(entry.id); loadFoodEntries(entry.date); refreshToday() } }
+
+    fun loadAiSummary(weekStart: String) { viewModelScope.launch(Dispatchers.IO) { val summary = db.getAiSummary(weekStart); withContext(Dispatchers.Main) { _aiSummary.value = summary } } }
+    fun saveAiSummary(summary: AiSummary) { viewModelScope.launch(Dispatchers.IO) { db.saveAiSummary(summary); withContext(Dispatchers.Main) { _aiSummary.value = summary } } }
 
     fun loadWeightHistory(days: Int = 30) {
         val fromDate = LocalDate.now().minusDays(days.toLong()).format(formatter)
@@ -332,15 +370,27 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val targetDate = LocalDate.now().plusWeeks(weekOffset.toLong())
         val mondayOfWeek = targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val sundayOfWeek = mondayOfWeek.plusDays(6)
+        val previousMonday = mondayOfWeek.minusWeeks(1)
+        val previousSunday = mondayOfWeek.minusDays(1)
         
         viewModelScope.launch(Dispatchers.IO) {
             val metrics = db.getMetricsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
             val workoutCounts = db.getWorkoutCountsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
             val cardioCounts = db.getCardioWorkoutCountsBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
+            val previousMetrics = db.getMetricsBetween(previousMonday.format(formatter), previousSunday.format(formatter))
+            val previousWorkoutCounts = db.getWorkoutCountsBetween(previousMonday.format(formatter), previousSunday.format(formatter))
+            val previousCardioCounts = db.getCardioWorkoutCountsBetween(previousMonday.format(formatter), previousSunday.format(formatter))
+            val foodEntries = db.getFoodEntriesBetween(mondayOfWeek.format(formatter), sundayOfWeek.format(formatter))
+            val previousFoodEntries = db.getFoodEntriesBetween(previousMonday.format(formatter), previousSunday.format(formatter))
             withContext(Dispatchers.Main) {
                 _weekMetrics.value = metrics
                 _weekWorkoutCounts.value = workoutCounts
                 _weekCardioCounts.value = cardioCounts
+                _previousWeekMetrics.value = previousMetrics
+                _previousWeekWorkoutCounts.value = previousWorkoutCounts
+                _previousWeekCardioCounts.value = previousCardioCounts
+                _weekFoodEntries.value = foodEntries
+                _previousWeekFoodEntries.value = previousFoodEntries
             }
         }
     }

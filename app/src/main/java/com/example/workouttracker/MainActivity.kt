@@ -2,6 +2,8 @@ package com.example.workouttracker
 
 import android.graphics.Color
 import android.os.Bundle
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -51,7 +53,7 @@ fun AppNav(viewModel: AppViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val showBottomBar = currentRoute in listOf("dashboard", "this_week", "history", "report")
+    val showBottomBar = currentRoute in listOf("dashboard", "this_week", "history", "report", "food_log")
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -79,6 +81,11 @@ fun AppNav(viewModel: AppViewModel) {
                 .consumeWindowInsets(padding),
             color = MaterialTheme.colorScheme.background
         ) {
+            Crossfade(
+                targetState = currentRoute ?: "dashboard",
+                animationSpec = tween(220),
+                label = "screen-navigation"
+            ) {
             NavHost(navController = navController, startDestination = "dashboard") {
                 composable("dashboard") {
                     DashboardScreen(
@@ -89,11 +96,20 @@ fun AppNav(viewModel: AppViewModel) {
                         onNavigateHistory = { navController.navigate("history") },
                         onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") },
                         onNavigateGoalSetup = { navController.navigate("goal_setup") },
-                        onNavigateNotifications = { navController.navigate("notifications") }
+                        onNavigateNotifications = { navController.navigate("notifications") },
+                        onNavigateFoodLog = { navController.navigate("food_log") }
                     )
                 }
                 composable("notifications") {
                     NotificationsScreen(onBack = { navController.popBackStack() })
+                }
+                composable("add_meal") { AddMealScreen(viewModel, onBack = { navController.popBackStack() }) }
+                composable("food_log") {
+                    FoodLogScreen(
+                        viewModel = viewModel,
+                        onBack = { navController.popBackStack() },
+                        onAddMeal = { navController.navigate("add_meal") }
+                    )
                 }
                 composable("goal_setup") {
                     GoalSetupScreen(
@@ -133,6 +149,7 @@ fun AppNav(viewModel: AppViewModel) {
                         onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") }
                     )
                 }
+            }
             }
         }
     }

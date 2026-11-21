@@ -14,3 +14,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+/backend/functions/node_modules/
+/backend/.env*
+/backend/functions/.secret.local
+*.log
+package-lock.json
+docs/Fitness App Redesign.html
+app/google-services.json
