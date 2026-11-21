@@ -59,6 +59,7 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val cardioCounts by viewModel.weekCardioCounts
     val previousWeekMetrics by viewModel.previousWeekMetrics
     val previousWeekWorkoutCounts by viewModel.previousWeekWorkoutCounts
+    val previousWeekCardioCounts by viewModel.previousWeekCardioCounts
     val weekFoodEntries by viewModel.weekFoodEntries
     val previousWeekFoodEntries by viewModel.previousWeekFoodEntries
     val goal by viewModel.userGoal
@@ -85,6 +86,8 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val previousDailyProtein = averageDailyFoodValue(previousWeekFoodEntries) { it.proteinG }
     val currentDailyCalories = averageDailyFoodValue(weekFoodEntries) { it.calories }
     val previousDailyCalories = averageDailyFoodValue(previousWeekFoodEntries) { it.calories }
+    val caloriesByDate = weekFoodEntries.groupBy { it.date }.mapValues { (_, entries) -> entries.sumOf { it.calories }.toFloat() }
+    val dailyCalories = days.map { caloriesByDate[it.format(DateFormatter)] ?: 0f }
     val currentAverageWeight = previousOrZero(weekMetrics.map { it.bodyWeight }.filter { it > 0 })
     val previousAverageWeight = previousOrZero(previousWeekMetrics.map { it.bodyWeight }.filter { it > 0 })
     val workoutsDone = workoutCounts.values.sum()
@@ -115,17 +118,27 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                         val stats = mapOf<String, Any>(
                             "weekStart" to range.start.format(DateFormatter),
                             "dailyProteinG" to currentDailyProtein,
+                            "hasCurrentProteinLogs" to weekFoodEntries.isNotEmpty(),
+                            "hasPreviousProteinLogs" to previousWeekFoodEntries.isNotEmpty(),
                             "previousDailyProteinG" to previousDailyProtein,
                             "proteinGoalG" to dailyProteinTarget,
                             "dailyCalorieTargetKcal" to (dailyCalorieTarget ?: 0f),
                             "dailyCaloriesKcal" to currentDailyCalories,
+                            "hasCurrentCalorieLogs" to weekFoodEntries.isNotEmpty(),
+                            "hasPreviousCalorieLogs" to previousWeekFoodEntries.isNotEmpty(),
                             "previousDailyCaloriesKcal" to previousDailyCalories,
                             "averageWeightKg" to currentAverageWeight,
+                            "hasCurrentWeightLogs" to weekMetrics.any { it.bodyWeight > 0 },
+                            "hasPreviousWeightLogs" to previousWeekMetrics.any { it.bodyWeight > 0 },
                             "previousAverageWeightKg" to previousAverageWeight,
                             "workoutsDone" to workoutsDone,
+                            "hasCurrentWorkoutLogs" to (workoutsDone > 0),
                             "workoutsLastWeek" to previousWorkoutsDone,
+                            "hasPreviousWorkoutLogs" to (previousWorkoutsDone > 0),
                             "workoutGoal" to workoutProgress.goal,
                             "cardioDays" to cardioDays,
+                            "hasCurrentCardioLogs" to (cardioDays > 0),
+                            "hasPreviousCardioLogs" to previousWeekCardioCounts.values.any { it > 0 },
                             "cardioGoal" to 4,
                             "daysProteinGoalHit" to currentProteinDays.count { day -> day.sumOf { it.proteinG }.toFloat() >= dailyProteinTarget }
                         )
@@ -138,6 +151,7 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             WorkoutCard(days, workoutCounts, workoutProgress)
             CardioCard(days, cardioCounts, cardioProgress)
             MetricCard("PROTEIN", averageText(weekMetrics.map { it.protein }, "g"), "Daily average", weekMetrics.map { it.protein }, goal?.dailyProteinTarget ?: 120f, "g", MintAccent)
+            MetricCard("CALORIES", averageText(dailyCalories, "kcal"), "Daily average", dailyCalories, goal?.dailyCalorieTarget ?: 0f, "kcal", CoralAccent)
             MetricCard("WATER", averageText(weekMetrics.map { it.water }, "L"), "Daily average", weekMetrics.map { it.water }, goal?.dailyWaterTarget ?: 3f, "L", TealAccent)
             WeightCard(days, weekMetrics.map { it.bodyWeight }, goal?.targetWeight)
             Spacer(Modifier.height(90.dp))
@@ -381,8 +395,16 @@ private fun CardHeading(title: String, detail: String, detailColor: Color = Text
 private fun averageText(values: List<Float>, unit: String): String {
     val logged = values.filter { it > 0 }
     if (logged.isEmpty()) return "—"
-    return if (unit == "g") String.format(Locale.US, "%.0f g", logged.average()) else String.format(Locale.US, "%.1f L", logged.average())
+    return when (unit) {
+        "g" -> String.format(Locale.US, "%.0f g", logged.average())
+        "kcal" -> String.format(Locale.US, "%.0f kcal", logged.average())
+        else -> String.format(Locale.US, "%.1f L", logged.average())
+    }
 }
 
-private fun metricValue(value: Float, unit: String): String = if (unit == "g") "${value.toInt()} g" else String.format(Locale.US, "%.1f L", value)
+private fun metricValue(value: Float, unit: String): String = when (unit) {
+    "g" -> "${value.toInt()} g"
+    "kcal" -> "${value.toInt()} kcal"
+    else -> String.format(Locale.US, "%.1f L", value)
+}
 private fun signedWeight(change: Float): String = String.format(Locale.US, "%+.1f kg", change)

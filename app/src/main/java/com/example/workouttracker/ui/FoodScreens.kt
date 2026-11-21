@@ -1,5 +1,6 @@
 package com.example.workouttracker.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -55,6 +56,7 @@ private val MealTypes = listOf("Breakfast", "Brunch", "Lunch", "Dinner", "Snack"
 
 @Composable
 fun AddMealScreen(viewModel: AppViewModel, onBack: () -> Unit) {
+    BackHandler(onBack = onBack)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
@@ -64,6 +66,7 @@ fun AddMealScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     var mealType by remember { mutableStateOf("Breakfast") }
     var mealMenuExpanded by remember { mutableStateOf(false) }
     var showConsent by remember { mutableStateOf(false) }
+    var showSplit by remember { mutableStateOf(false) }
     var consentAccepted by remember { mutableStateOf(context.getSharedPreferences("ai_preferences", 0).getBoolean("meal_consent", false)) }
     fun online(): Boolean = (context.getSystemService(ConnectivityManager::class.java)?.activeNetwork?.let { context.getSystemService(ConnectivityManager::class.java)?.getNetworkCapabilities(it) }?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true)
     fun estimateMeal() {
@@ -86,137 +89,151 @@ fun AddMealScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             } finally { loading = false }
         }
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") }
-            Column(Modifier.weight(1f)) { LabelText("ADD MEAL"); Text("Estimate nutrition", style = ScreenTitleStyle) }
-            Box(Modifier.clip(RoundedCornerShape(20.dp)).background(Raised).padding(horizontal = 12.dp, vertical = 7.dp)) {
-                Text(LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, d MMM")), color = TextLo, fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            }
-        }
-        FitCard(Modifier.fillMaxWidth(), padding = PaddingValues(10.dp)) {
-            LabelText("DESCRIBE YOUR MEAL")
-            Spacer(Modifier.height(6.dp))
-            BasicTextField(
-                value = text,
-                onValueChange = { text = it },
-                enabled = !loading,
-                textStyle = LocalTextStyle.current.copy(color = TextHi, fontSize = 14.sp),
-                cursorBrush = SolidColor(Accent),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                maxLines = 3,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Raised)
-                    .border(1.dp, MintAccent, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp),
-                decorationBox = { innerTextField ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (text.isEmpty()) {
-                            Text(
-                                "e.g. 2 rotis, dal and curd",
-                                color = TextLo.copy(alpha = 0.65f),
-                                fontSize = 14.sp
-                            )
-                        }
-                        innerTextField()
-                    }
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = if (items.isNotEmpty()) 18.dp else 0.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") }
+                Column(Modifier.weight(1f)) { LabelText("ADD MEAL"); Text("Estimate nutrition", style = ScreenTitleStyle) }
+                Box(Modifier.clip(RoundedCornerShape(20.dp)).background(Raised).padding(horizontal = 12.dp, vertical = 7.dp)) {
+                    Text(LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, d MMM")), color = TextLo, fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
-            )
-            Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                Box(
+            }
+            FitCard(Modifier.fillMaxWidth(), padding = PaddingValues(10.dp)) {
+                LabelText("DESCRIBE YOUR MEAL")
+                Spacer(Modifier.height(6.dp))
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    enabled = !loading,
+                    textStyle = LocalTextStyle.current.copy(color = TextHi, fontSize = 14.sp),
+                    cursorBrush = SolidColor(Accent),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    maxLines = 3,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .height(58.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(Raised)
-                        .border(
-                            1.dp,
-                            if (mealMenuExpanded) MintAccent else CardBorder,
-                            RoundedCornerShape(12.dp)
-                        )
-                        .clickable { mealMenuExpanded = !mealMenuExpanded }
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Meal type: $mealType",
-                            modifier = Modifier.weight(1f),
-                            color = TextLo,
-                            fontSize = 15.sp,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                        )
-                        Text("⌄", color = TextLo, fontSize = 14.sp)
+                        .border(1.dp, MintAccent, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp),
+                    decorationBox = { innerTextField ->
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+                            if (text.isEmpty()) Text("e.g. 2 rotis, dal and curd", color = TextLo.copy(alpha = 0.65f), fontSize = 14.sp)
+                            innerTextField()
+                        }
                     }
-                }
-
-                if (mealMenuExpanded) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    FitCard(padding = PaddingValues(4.dp)) {
-                        Column {
-                            MealTypes.forEach { option ->
-                                DropdownItem(option) {
-                                    mealType = option
-                                    mealMenuExpanded = false
+                )
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Raised)
+                            .border(1.dp, if (mealMenuExpanded) MintAccent else CardBorder, RoundedCornerShape(12.dp))
+                            .clickable { mealMenuExpanded = !mealMenuExpanded }
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Meal type: $mealType", Modifier.weight(1f), color = TextLo, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+                            Text("⌄", color = TextLo, fontSize = 14.sp)
+                        }
+                    }
+                    if (mealMenuExpanded) {
+                        Spacer(Modifier.height(8.dp))
+                        FitCard(padding = PaddingValues(4.dp)) {
+                            Column {
+                                MealTypes.forEach { option ->
+                                    DropdownItem(option) {
+                                        mealType = option
+                                        mealMenuExpanded = false
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-            if (items.isNotEmpty()) {
-                TextButton(onClick = { estimateMeal() }, enabled = !loading, modifier = Modifier.align(Alignment.End)) {
-                    Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(15.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Re-estimate")
+                if (items.isNotEmpty()) {
+                    TextButton(onClick = { estimateMeal() }, enabled = !loading, modifier = Modifier.align(Alignment.End)) {
+                        Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Re-estimate")
+                    }
                 }
             }
-        }
-        if (items.isEmpty()) {
-            PrimaryButton(text = "Estimate nutrition", onClick = { estimateMeal() }, enabled = !loading, loading = loading, leadingIcon = Icons.Rounded.AutoAwesome)
-            Text("AI estimates can be off. Check the numbers before saving.", color = TextLo, fontSize = 11.sp)
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LabelText("ESTIMATED MEAL")
-                Spacer(Modifier.weight(1f))
-                Text("Tap a number to edit", color = TextLo, fontSize = 10.sp)
-            }
-            items.forEachIndexed { index, item ->
-                FitCard(Modifier.fillMaxWidth(), padding = PaddingValues(12.dp)) {
+            if (items.isEmpty()) {
+                PrimaryButton(text = "Estimate nutrition", onClick = { estimateMeal() }, enabled = !loading, loading = loading, leadingIcon = Icons.Rounded.AutoAwesome)
+                Text("AI estimates can be off. Check the numbers before saving.", color = TextLo, fontSize = 11.sp)
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+            } else {
+                FitCard(Modifier.fillMaxWidth(), backgroundColor = Raised, padding = PaddingValues(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(item.name, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = TextHi)
-                            Text(item.qty, color = TextLo, fontSize = 11.sp)
+                            LabelText("TOTAL ESTIMATE")
+                            Spacer(Modifier.height(6.dp))
+                            Text("${items.sumOf { it.calories.toIntOrNull() ?: 0 }} kcal", style = CardNumberStyle)
+                            Text("Protein ${items.sumOf { it.protein.toIntOrNull() ?: 0 }}g   Carbs ${items.sumOf { it.carbs.toIntOrNull() ?: 0 }}g   Fat ${items.sumOf { it.fat.toIntOrNull() ?: 0 }}g", color = TextLo, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                         }
-                        if (item.rough) Text("rough estimate", color = TextLo, fontSize = 10.sp)
-                        IconButton(onClick = { items = items.toMutableList().also { it.removeAt(index) } }) { Icon(Icons.Rounded.Delete, "Delete", tint = TextLo) }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
-                        FoodField("Cal", item.calories, true, Modifier.weight(1f)) { items = items.updated(index) { copy(calories = it) } }
-                        FoodField("Protein", item.protein, true, Modifier.weight(1f)) { items = items.updated(index) { copy(protein = it) } }
-                        FoodField("Carbs", item.carbs, true, Modifier.weight(1f)) { items = items.updated(index) { copy(carbs = it) } }
-                        FoodField("Fat", item.fat, true, Modifier.weight(1f)) { items = items.updated(index) { copy(fat = it) } }
+                        TextButton(onClick = { showSplit = !showSplit }) {
+                            Text(if (showSplit) "Hide split" else "See split")
+                        }
                     }
                 }
+                AnimatedVisibility(visible = showSplit) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LabelText("ESTIMATED MEAL")
+                            Spacer(Modifier.weight(1f))
+                            Text("Tap a number to edit", color = TextLo, fontSize = 10.sp)
+                        }
+                        items.forEachIndexed { index, item ->
+                            FitCard(Modifier.fillMaxWidth(), padding = PaddingValues(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(item.name, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = TextHi)
+                                        Text(item.qty, color = TextLo, fontSize = 11.sp)
+                                    }
+                                    if (item.rough) Text("rough estimate", color = TextLo, fontSize = 10.sp)
+                                    IconButton(onClick = { items = items.toMutableList().also { it.removeAt(index) } }) { Icon(Icons.Rounded.Delete, "Delete", tint = TextLo) }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
+                                    FoodField("Cal", item.calories, true, Modifier.weight(1f)) { items = items.updated(index) { copy(calories = it) } }
+                                    FoodField("Protein", item.protein, true, Modifier.weight(1f)) { items = items.updated(index) { copy(protein = it) } }
+                                    FoodField("Carbs", item.carbs, true, Modifier.weight(1f)) { items = items.updated(index) { copy(carbs = it) } }
+                                    FoodField("Fat", item.fat, true, Modifier.weight(1f)) { items = items.updated(index) { copy(fat = it) } }
+                                }
+                            }
+                        }
+                    }
+                }
+                Text("AI estimates can be off. Check the numbers before saving.", color = TextLo, fontSize = 11.sp)
             }
-            FitCard(Modifier.fillMaxWidth(), backgroundColor = Raised, padding = PaddingValues(14.dp)) {
-                LabelText("TOTAL ESTIMATE")
-                Spacer(Modifier.height(6.dp))
-                Text("${items.sumOf { it.calories.toIntOrNull() ?: 0 }} kcal", style = CardNumberStyle)
-                Text("P ${items.sumOf { it.protein.toIntOrNull() ?: 0 }}g   C ${items.sumOf { it.carbs.toIntOrNull() ?: 0 }}g   F ${items.sumOf { it.fat.toIntOrNull() ?: 0 }}g", color = TextLo, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            }
-            Text("AI estimates can be off. Check the numbers before saving.", color = TextLo, fontSize = 11.sp)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        }
+        if (items.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(Ground)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 TextButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Cancel") }
-                Button(onClick = { viewModel.saveFoodEntries(items.map { FoodEntry(date = LocalDate.now().format(FoodDate), name = it.name, qty = it.qty, calories = it.calories.toIntOrNull() ?: 0, proteinG = it.protein.toIntOrNull() ?: 0, carbsG = it.carbs.toIntOrNull() ?: 0, fatG = it.fat.toIntOrNull() ?: 0, source = "ai", createdAt = System.currentTimeMillis(), mealType = mealType) }); onBack() }, modifier = Modifier.weight(1.6f)) { Text("Save to log") }
+                PrimaryButton(
+                    text = "Save to log",
+                    onClick = {
+                        viewModel.saveFoodEntries(items.map { FoodEntry(date = LocalDate.now().format(FoodDate), name = it.name, qty = it.qty, calories = it.calories.toIntOrNull() ?: 0, proteinG = it.protein.toIntOrNull() ?: 0, carbsG = it.carbs.toIntOrNull() ?: 0, fatG = it.fat.toIntOrNull() ?: 0, source = "ai", createdAt = System.currentTimeMillis(), mealType = mealType) })
+                        onBack()
+                    },
+                    modifier = Modifier.weight(1.6f)
+                )
             }
         }
     }

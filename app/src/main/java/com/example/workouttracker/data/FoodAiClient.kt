@@ -1,7 +1,6 @@
 package com.example.workouttracker.data
 
-import android.content.pm.ApplicationInfo
-import com.google.firebase.FirebaseApp
+import com.example.workouttracker.BuildConfig
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.TimeUnit
@@ -26,16 +25,15 @@ data class ParsedItem(
 
 class FoodAiClient {
     private val functions = FirebaseFunctions.getInstance("asia-south1").also {
-        if (FirebaseApp.getInstance().applicationContext.applicationInfo.flags and
-            ApplicationInfo.FLAG_DEBUGGABLE != 0
-        ) {
+        if (BuildConfig.DEBUG) {
             // Android Emulator -> host machine.
             it.useEmulator("10.0.2.2", 5001)
         }
     }
 
     suspend fun parse(text: String, imageB64: String?): List<ParsedItem> {
-        if (isDebugBuild()) {
+        if (BuildConfig.DEBUG) {
+            // Local/debug AI calls are intentionally unlimited and never reach Firebase.
             return listOf(
                 ParsedItem("Roti", "2 pieces", 210, 6, 40, 3, "high"),
                 ParsedItem("Dal tadka", "1 bowl, about 200 g", 180, 9, 24, 5, "medium"),
@@ -51,9 +49,11 @@ class FoodAiClient {
     }
 
     suspend fun weeklySummary(stats: Map<String, Any>): AiSummary {
-        if (isDebugBuild()) {
+        if (BuildConfig.DEBUG) {
+            // Local/debug summaries are generated from local data without consuming quota.
             fun number(key: String): Float = (stats[key] as? Number)?.toFloat() ?: 0f
             fun comparison(current: Float, previous: Float): String {
+                if (current <= 0f) return "no current data"
                 if (previous <= 0f) return "no previous data"
                 val change = ((current - previous) / previous * 100f).roundToInt()
                 return when {
@@ -76,7 +76,7 @@ class FoodAiClient {
                 bullets = listOf(
                     "Daily protein intake was ${protein.toInt()}g (${comparison(protein, number("previousDailyProteinG"))} vs last week); goal ${proteinGoal.toInt()}g, ${number("daysProteinGoalHit").toInt()} days met.",
                     if (calorieGoal > 0f) "Daily average calorie intake was ${calories.toInt()} kcal (${comparison(calories, number("previousDailyCaloriesKcal"))} vs last week); goal ${calorieGoal.toInt()} kcal." else "Daily average calorie intake was ${calories.toInt()} kcal (${comparison(calories, number("previousDailyCaloriesKcal"))} vs last week); set a calorie goal to track it against a target.",
-                    "Average weight was ${"%.1f".format(weight)} kg (${comparison(weight, number("previousAverageWeightKg"))} vs last week).",
+                    if (weight <= 0f) "No weight logs found this week." else "Average weight was ${"%.1f".format(weight)} kg (${comparison(weight, number("previousAverageWeightKg"))} vs last week).",
                     "You completed $workouts workouts, compared with $lastWeekWorkouts last week.",
                     "You did cardio $cardioDays/4 days."
                 ),
@@ -90,7 +90,4 @@ class FoodAiClient {
         return AiSummary(stats["weekStart"].toString(), data["headline"].toString(), (data["bullets"] as? List<Any?>)?.map { it.toString() } ?: emptyList(), data["suggestion"].toString())
     }
 
-    private fun isDebugBuild(): Boolean =
-        FirebaseApp.getInstance().applicationContext.applicationInfo.flags and
-            ApplicationInfo.FLAG_DEBUGGABLE != 0
 }

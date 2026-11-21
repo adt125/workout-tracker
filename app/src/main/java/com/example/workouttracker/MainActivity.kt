@@ -2,6 +2,7 @@ package com.example.workouttracker
 
 import android.graphics.Color
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.activity.ComponentActivity
@@ -52,6 +53,10 @@ fun AppNav(viewModel: AppViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    BackHandler(enabled = currentRoute != null && currentRoute != "dashboard") {
+        navController.popBackStack()
+    }
 
     val showBottomBar = currentRoute in listOf("dashboard", "this_week", "history", "report", "food_log")
 
