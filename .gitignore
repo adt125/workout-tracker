@@ -20,4 +20,5 @@ local.properties
 *.log
 package-lock.json
 docs/Fitness App Redesign.html
+# Generated locally from the Firebase project settings.
 app/google-services.json
