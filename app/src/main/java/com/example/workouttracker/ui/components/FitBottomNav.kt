@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
@@ -82,7 +81,8 @@ fun FitBottomNav(
                 FitNavItem(
                     item = item,
                     isSelected = isSelected,
-                    onClick = { onNavigate(item.route) }
+                    onClick = { onNavigate(item.route) },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -93,20 +93,20 @@ fun FitBottomNav(
 private fun FitNavItem(
     item: NavItemSpec,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val backgroundColor = if (isSelected) Raised else Color.Transparent
     val contentColor = if (isSelected) MintAccent else TextLo
     val shape = RoundedCornerShape(26.dp)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .height(52.dp)
-            .widthIn(min = 72.dp)
             .clip(shape)
             .background(backgroundColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 2.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(

@@ -179,7 +179,7 @@ fun AddMealScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             }
         }
         if (items.isEmpty()) {
-            PrimaryButton(text = if (loading) "Estimating…" else "Estimate nutrition", onClick = { estimateMeal() }, enabled = !loading, leadingIcon = if (loading) null else Icons.Rounded.AutoAwesome)
+            PrimaryButton(text = "Estimate nutrition", onClick = { estimateMeal() }, enabled = !loading, loading = loading, leadingIcon = Icons.Rounded.AutoAwesome)
             Text("AI estimates can be off. Check the numbers before saving.", color = TextLo, fontSize = 11.sp)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
         } else {

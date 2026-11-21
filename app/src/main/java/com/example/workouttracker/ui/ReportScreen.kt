@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -65,6 +66,7 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val aiSummary by viewModel.aiSummary
     val scope = rememberCoroutineScope()
     var aiError by remember { mutableStateOf<String?>(null) }
+    var aiLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(weekOffset) { viewModel.loadWeekMetrics(weekOffset) }
 
@@ -88,7 +90,9 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
     val workoutsDone = workoutCounts.values.sum()
     val previousWorkoutsDone = previousWeekWorkoutCounts.values.sum()
     val cardioDays = cardioCounts.values.count { it > 0 }
-    LaunchedEffect(range.start) { viewModel.loadAiSummary(range.start.format(DateFormatter)) }
+    LaunchedEffect(range.start, canGenerateSummary) {
+        if (canGenerateSummary) viewModel.loadAiSummary(range.start.format(DateFormatter))
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(Ground)) {
         TrendsHeader(range, weekLabel(range), weekOffset < 0, { weekOffset-- }, { if (weekOffset < 0) weekOffset++ })
@@ -96,9 +100,15 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            AiSummaryCard(aiSummary, aiError, canGenerateSummary) {
+            AiSummaryCard(
+                summary = if (canGenerateSummary) aiSummary else null,
+                error = aiError,
+                canGenerate = canGenerateSummary,
+                loading = aiLoading
+            ) {
                 if (canGenerateSummary) {
                     aiError = null
+                    aiLoading = true
                     scope.launch {
                         try {
                         val currentProteinDays = weekFoodEntries.groupBy { it.date }.values
@@ -121,6 +131,7 @@ fun ReportScreen(viewModel: AppViewModel, onBack: () -> Unit) {
                         )
                             viewModel.saveAiSummary(FoodAiClient().weeklySummary(stats))
                         } catch (_: Exception) { aiError = "Couldn't generate a summary right now. Try again later." }
+                        finally { aiLoading = false }
                     }
                 }
             }
@@ -197,7 +208,7 @@ private fun Int?.orZero() = this ?: 0
 private fun Float?.orZero() = this ?: 0f
 
 @Composable
-private fun AiSummaryCard(summary: com.example.workouttracker.data.AiSummary?, error: String?, canGenerate: Boolean, onGenerate: () -> Unit) {
+private fun AiSummaryCard(summary: com.example.workouttracker.data.AiSummary?, error: String?, canGenerate: Boolean, loading: Boolean, onGenerate: () -> Unit) {
     FitCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -205,12 +216,24 @@ private fun AiSummaryCard(summary: com.example.workouttracker.data.AiSummary?, e
                 Spacer(Modifier.width(6.dp))
                 Text("AI SUMMARY", color = MintAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                if (summary != null && canGenerate) TextButton(onClick = onGenerate) { Text("Refresh") }
+                if (summary != null && canGenerate) {
+                    TextButton(onClick = onGenerate, enabled = !loading) {
+                        if (loading) {
+                            CircularProgressIndicator(
+                                color = MintAccent,
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("Refresh")
+                        }
+                    }
+                }
             }
             if (summary == null) {
                 Text("Get a short recap from this week's numbers.", color = TextLo, fontSize = 13.sp)
                 if (canGenerate) {
-                    PrimaryButton(text = "Generate summary", onClick = onGenerate, modifier = Modifier.fillMaxWidth())
+                    PrimaryButton(text = "Generate summary", onClick = onGenerate, enabled = !loading, loading = loading, modifier = Modifier.fillMaxWidth())
                 } else {
                     Text("Weekly summary generation is available on Saturday and Sunday.", color = TextLo, fontSize = 12.sp)
                 }

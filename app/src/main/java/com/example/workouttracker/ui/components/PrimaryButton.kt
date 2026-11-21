@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,6 +39,7 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
+    loading: Boolean = false,
     backgroundBrush: Brush = PrimaryButtonBrush
 ) {
     val contentColor = if (enabled) Color.White else TextLo
@@ -60,7 +62,13 @@ fun PrimaryButton(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (leadingIcon != null) {
+        if (loading) {
+            CircularProgressIndicator(
+                color = contentColor,
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp
+            )
+        } else if (leadingIcon != null) {
             Icon(
                 imageVector = leadingIcon,
                 contentDescription = null,
@@ -69,12 +77,14 @@ fun PrimaryButton(
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
-        Text(
-            text = text,
-            color = contentColor,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+        if (!loading) {
+            Text(
+                text = text,
+                color = contentColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 
