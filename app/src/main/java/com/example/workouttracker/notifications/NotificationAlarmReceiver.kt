@@ -41,7 +41,7 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
                 context,
                 if (isCheckIn) AppNotificationManager.CHECK_IN_CHANNEL else AppNotificationManager.WATER_CHANNEL
             )
-                .setSmallIcon(R.drawable.ic_notification)
+                .setSmallIcon(R.drawable.ic_stat_notification)
                 .setContentTitle(if (isCheckIn) "Daily check-in" else "Time for some water")
                 .setContentText(if (isCheckIn) "Take a moment to log today’s progress." else "Log a glass and keep your hydration on track.")
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
