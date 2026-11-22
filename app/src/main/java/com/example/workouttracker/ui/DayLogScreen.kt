@@ -1,8 +1,12 @@
 package com.example.workouttracker.ui
 
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,26 +16,94 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.text.BasicTextField
 import com.example.workouttracker.data.SetRecord
 import com.example.workouttracker.data.WorkoutEntry
 import com.example.workouttracker.ui.theme.*
+import com.example.workouttracker.util.ExerciseDelta
+import com.example.workouttracker.util.formatWeight
+import com.example.workouttracker.util.progressDelta
 import com.example.workouttracker.viewmodel.AppViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit) {
+fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNavigateEditWorkout: (Long) -> Unit) {
     val workouts by viewModel.dayWorkoutsList
+    val dayMetrics by viewModel.dayMetrics
+    val dayNotes by viewModel.dayNotes
     val formatter = DateTimeFormatter.ofPattern("EEEE, d MMMM")
     val displayDate = try { LocalDate.parse(date).format(formatter) } catch(e: Exception) { date }
 
+    var showWeightDialog by remember { mutableStateOf(false) }
+    var showWaterDialog by remember { mutableStateOf(false) }
+    var showProteinDialog by remember { mutableStateOf(false) }
+    var showNotesDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(date) {
         viewModel.loadWorkoutsForDate(date)
+    }
+
+    if (showWeightDialog) {
+        LogMetricDialog(
+            title = "Edit Weight",
+            label = "KG",
+            initialValue = dayMetrics?.bodyWeight?.let { if (it > 0) it.toString() else "" } ?: "",
+            onDismiss = { showWeightDialog = false },
+            onConfirm = { value ->
+                viewModel.updateDailyMetrics(weight = value.toFloatOrNull(), date = date)
+                showWeightDialog = false
+            }
+        )
+    }
+
+    if (showWaterDialog) {
+        LogMetricDialog(
+            title = "Edit Water",
+            label = "LITRES",
+            initialValue = dayMetrics?.water?.let { if (it > 0) it.toString() else "" } ?: "",
+            onDismiss = { showWaterDialog = false },
+            onConfirm = { value ->
+                viewModel.updateDailyMetrics(water = value.toFloatOrNull() ?: 0f, date = date)
+                showWaterDialog = false
+            }
+        )
+    }
+
+    if (showProteinDialog) {
+        LogMetricDialog(
+            title = "Edit Protein",
+            label = "GRAMS",
+            initialValue = dayMetrics?.protein?.let { if (it > 0) it.toInt().toString() else "" } ?: "",
+            onDismiss = { showProteinDialog = false },
+            onConfirm = { value ->
+                viewModel.updateDailyMetrics(protein = value.toFloatOrNull() ?: 0f, date = date)
+                showProteinDialog = false
+            }
+        )
+    }
+
+    if (showNotesDialog) {
+        LogNotesDialog(
+            title = "Workout Notes",
+            initialValue = dayNotes ?: "",
+            onDismiss = { showNotesDialog = false },
+            onConfirm = { value ->
+                viewModel.updateSessionNotes(date, if (value.isBlank()) null else value)
+                showNotesDialog = false
+            }
+        )
     }
 
     Column(
@@ -41,9 +113,13 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+
                 .background(AppBackground)
                 .padding(16.dp)
         ) {
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+            }
             Text(
                 displayDate, 
                 fontSize = 18.sp, 
@@ -53,27 +129,79 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit) {
             )
         }
 
-        if (workouts.isEmpty()) {
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                Text("No logs for this day", color = TextSecondary)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(workouts) { pair ->
-                    WorkoutLogCard(pair.first, pair.second, viewModel)
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MetricSummaryItem("Weight", dayMetrics?.bodyWeight?.let { if (it > 0) "$it kg" else "--" } ?: "--", "⚖", Modifier.weight(1f)) { showWeightDialog = true }
+                    MetricSummaryItem("Water", dayMetrics?.water?.let { "$it L" } ?: "0 L", "💧", Modifier.weight(1f)) { showWaterDialog = true }
+                    MetricSummaryItem("Protein", dayMetrics?.protein?.let { "${it.toInt()} g" } ?: "0 g", "💊", Modifier.weight(1f)) { showProteinDialog = true }
                 }
+            }
+
+            item {
+                NotesCard(notes = dayNotes, modifier = Modifier.fillMaxWidth()) {
+                    showNotesDialog = true
+                }
+            }
+
+            if (workouts.isEmpty()) {
+                item {
+                    EmptyStateView(
+                        title = "No Workouts Logged",
+                        subtitle = "No workout logs recorded for this date.",
+                        icon = "🏋️"
+                    )
+                }
+            } else {
+                items(workouts) { pair ->
+                    WorkoutLogCard(pair.first, pair.second, viewModel, onEdit = { onNavigateEditWorkout(pair.first.id) })
+                }
+            }
+            
+            item {
+                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
 }
 
 @Composable
-fun WorkoutLogCard(workout: WorkoutEntry, exName: String, viewModel: AppViewModel) {
+fun MetricSummaryItem(label: String, value: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        color = CardBackground,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(label.uppercase(), color = TextSecondary, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(icon, fontSize = 12.sp)
+            }
+            Text(value, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun WorkoutLogCard(workout: WorkoutEntry, exName: String, viewModel: AppViewModel, onEdit: () -> Unit) {
     var previousSets by remember { mutableStateOf<List<SetRecord>>(emptyList()) }
     val sets = workout.sets
     
@@ -83,58 +211,268 @@ fun WorkoutLogCard(workout: WorkoutEntry, exName: String, viewModel: AppViewMode
         }
     }
 
+    val delta = progressDelta(sets, previousSets)
+    val deltaText = when (delta) {
+        is ExerciseDelta.TopWeightUp -> "+${formatWeight(delta.diffKg)} kg"
+        is ExerciseDelta.RepsUp -> "+${delta.diffReps} ${if (delta.diffReps == 1) "rep" else "reps"}"
+        is ExerciseDelta.VolumeUp -> "+${delta.percent}% vol"
+        is ExerciseDelta.Same -> "Same"
+        is ExerciseDelta.Lower -> delta.desc
+        ExerciseDelta.None -> null
+    }
+    val deltaColor = when (delta) {
+        is ExerciseDelta.Same, is ExerciseDelta.Lower -> TextSecondary
+        else -> AccentGreen
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(CardBackground)
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Header Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(exName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = exName,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (deltaText != null) {
+                    Text(
+                        text = deltaText,
+                        color = deltaColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
             
-            if (sets.isNotEmpty() && previousSets.isNotEmpty()) {
-                val currentAvg = sets.mapNotNull { it.weight }.average()
-                val prevAvg = previousSets.mapNotNull { it.weight }.average()
+            IconButton(
+                onClick = onEdit,
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit workout",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
 
-                if (!currentAvg.isNaN() && !prevAvg.isNaN()) {
-                    val comparisonText = when {
-                        currentAvg > prevAvg -> "Heavier"
-                        currentAvg < prevAvg -> "Lighter"
-                        else -> "Same"
+        // Side-by-side Layout Content
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Left Column: Current Sets
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "CURRENT SESSION",
+                    color = TextSecondary,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                sets.forEach { record ->
+                    if (record.weight != null) {
+                        Text("${record.weight} kg  •  ${record.reps} reps", fontSize = 13.sp, color = Color.White)
+                    } else if (record.duration != null) {
+                        Text("${record.duration} min", fontSize = 13.sp, color = Color.White)
                     }
-                    val comparisonColor = when {
-                        currentAvg > prevAvg -> AccentGreen
-                        currentAvg < prevAvg -> Color(0xFFD32F2F)
-                        else -> TextSecondary
-                    }
-                    
-                    Surface(
-                        color = comparisonColor.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = comparisonText,
-                            color = comparisonColor,
-                            fontSize = 10.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            fontWeight = FontWeight.Medium
-                        )
+                }
+            }
+
+            // Right Column: Previous Sets (if any)
+            if (previousSets.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "LAST TIME",
+                        color = MutedText,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    previousSets.forEach { record ->
+                        if (record.weight != null) {
+                            Text("${record.weight} kg  •  ${record.reps} reps", fontSize = 13.sp, color = TextSecondary)
+                        } else if (record.duration != null) {
+                            Text("${record.duration} min", fontSize = 13.sp, color = TextSecondary)
+                        }
                     }
                 }
             }
         }
+    }
+}
 
-        sets.forEachIndexed { index, record ->
-            if (record.weight != null) {
-                Text("Set ${index + 1}: ${record.weight} kg • ${record.reps} reps", fontSize = 13.sp, color = TextSecondary)
-            } else if (record.duration != null) {
-                Text("Duration: ${record.duration} min", fontSize = 13.sp, color = TextSecondary)
+@Composable
+fun NotesCard(notes: String?, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        color = CardBackground,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("WORKOUT NOTES", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                Text("📝", fontSize = 14.sp)
+            }
+            if (!notes.isNullOrBlank()) {
+                Text(
+                    text = notes,
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            } else {
+                Text(
+                    text = "Tap to add notes for the day...",
+                    color = MutedText,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun LogNotesDialog(
+    title: String,
+    initialValue: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var value by remember { mutableStateOf(initialValue) }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(CardBackground)
+                .padding(24.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "NOTES",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(InputBackground)
+                            .border(1.dp, MutedText.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                            .clickable { focusRequester.requestFocus() }
+                            .padding(16.dp)
+                    ) {
+                        BasicTextField(
+                            value = value,
+                            onValueChange = { value = it },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .focusRequester(focusRequester),
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            cursorBrush = SolidColor(Color.White),
+                            decorationBox = { innerTextField ->
+                                if (value.isEmpty()) {
+                                    Text("How was your workout today? Any PRs, energy levels, or notes...", color = MutedText, fontSize = 14.sp)
+                                }
+                                innerTextField()
+                            }
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (initialValue.isNotEmpty()) {
+                        Button(
+                            onClick = { onConfirm("") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD32F2F).copy(alpha = 0.2f),
+                                contentColor = Color(0xFFD32F2F)
+                            )
+                        ) {
+                            Text("Clear", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Button(
+                        onClick = { onConfirm(value) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(54.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Color.Black
+                        )
+                    ) {
+                        Text("Save", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

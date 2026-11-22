@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.idea/
 /local.properties
 /.idea/caches
 /.idea/libraries
@@ -13,3 +14,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+/backend/functions/node_modules/
+/backend/.env*
+/backend/functions/.secret.local
+*.log
+package-lock.json
+docs/Fitness App Redesign.html
+# Generated locally from the Firebase project settings.
+app/google-services.json

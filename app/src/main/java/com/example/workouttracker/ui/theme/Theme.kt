@@ -1,67 +1,71 @@
 package com.example.workouttracker.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = AccentPurple,
-    secondary = AccentGreen,
-    tertiary = ChartPurple,
-    background = AppBackground,
-    surface = AppSurface,
+private val FitScheme = darkColorScheme(
+    background = Ground,
+    onBackground = TextHi,
+    surface = Card,
+    onSurface = TextHi,
+    surfaceVariant = Raised,
+    onSurfaceVariant = TextLo,
+    primary = Accent,
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = TextPrimary,
-    onSurface = TextPrimary,
-    onSurfaceVariant = TextSecondary,
-    outline = MutedText.copy(alpha = 0.3f)
+    primaryContainer = Accent.copy(alpha = 0.18f),
+    onPrimaryContainer = Accent,
+    secondary = Accent2,
+    onSecondary = Ground,
+    secondaryContainer = Accent2.copy(alpha = 0.18f),
+    onSecondaryContainer = Accent2,
+    outline = CardBorder
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = FigmaAccent,
-    secondary = FigmaAccentGreen,
-    tertiary = FigmaChartDark,
-    background = FigmaBackground,
-    surface = FigmaSurface,
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = FigmaTextPrimary,
-    onSurface = FigmaTextPrimary,
-    onSurfaceVariant = FigmaTextSecondary,
-    outline = FigmaMutedText.copy(alpha = 0.3f)
+@Immutable
+data class ExtraColors(
+    val positive: Color,
+    val accent2: Color,
+    val progressTrack: Color,
+    val cardBorder: Color
 )
+
+val LocalExtraColors = staticCompositionLocalOf {
+    ExtraColors(
+        positive = Positive,
+        accent2 = Accent2,
+        progressTrack = ProgressTrack,
+        cardBorder = CardBorder
+    )
+}
+
+@Composable
+fun AppTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalExtraColors provides ExtraColors(
+            positive = Positive,
+            accent2 = Accent2,
+            progressTrack = ProgressTrack,
+            cardBorder = CardBorder
+        )
+    ) {
+        MaterialTheme(
+            colorScheme = FitScheme,
+            typography = FitTypography,
+            content = content
+        )
+    }
+}
 
 @Composable
 fun WorkoutTrackerTheme(
     darkTheme: Boolean = true,
-    // Disable dynamic color to match Figma exactly
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    AppTheme(content = content)
 }
