@@ -4,6 +4,18 @@ WorkoutTracker is a modern Android fitness companion for recording workouts, tra
 
 The project is designed around a simple daily logging workflow: capture the data once, see meaningful trends over time, and use lightweight feedback to stay consistent.
 
+## Why WorkoutTracker was created
+
+Keeping track of your vitals, workouts, and nutrition (such as protein and calorie intake) is essential for studying your strength, growth, stamina, and overall fitness progress. 
+
+Before this app, recording workouts often relied on a physical diary or a basic notes app. While those methods are okay for jotting things down, they offer **no way to compare and analyze your data**. Without comparison and analysis, it is impossible to see where you lack and where you can improve.
+
+WorkoutTracker solves this problem by providing a simple, user-friendly UI packed with powerful features:
+- **Comparison & Analysis**: Easily compare workout performance and health metrics over time to identify strengths and areas for improvement.
+- **Vitals & Nutrition Tracking**: Monitor your weight, protein intake, and **water intake** daily.
+- **Daily Notes**: Keep daily logs and reflections on your training and recovery.
+- **AI-Powered Estimation**: Highlighted by **AI-driven calorie estimation**—describe any meal in natural language to instantly get nutritional estimates that you can review and edit before saving.
+
 ## Product overview
 
 WorkoutTracker brings the core parts of a personal fitness journal into one focused mobile experience:
