@@ -399,6 +399,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         db.getLatestSetDataForExercise(exerciseId, date)
     }
 
+    suspend fun getPreviousRecordForExercise(exerciseName: String, date: String): List<SetRecord> = withContext(Dispatchers.IO) {
+        val exerciseId = db.getExerciseIdByName(exerciseName)
+        if (exerciseId != null) {
+            db.getLatestSetDataForExercise(exerciseId, date)
+        } else {
+            emptyList()
+        }
+    }
+
+    suspend fun getLatestWorkoutEntryForExercise(exerciseName: String, date: String): WorkoutEntry? = withContext(Dispatchers.IO) {
+        val exerciseId = db.getExerciseIdByName(exerciseName)
+        if (exerciseId != null) {
+            db.getLatestWorkoutEntryForExercise(exerciseId, date)
+        } else {
+            null
+        }
+    }
+
     fun refreshExercises() {
         viewModelScope.launch(Dispatchers.IO) {
             db.mergeDuplicateExercises()

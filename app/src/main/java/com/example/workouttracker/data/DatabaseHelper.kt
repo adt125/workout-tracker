@@ -261,6 +261,23 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
     }
 
+    fun getExerciseIdByName(name: String): Int? {
+        val trimmed = name.trim()
+        val cursor = readableDatabase.query(
+            TABLE_EXERCISES,
+            arrayOf("id"),
+            "LOWER(name) = LOWER(?)",
+            arrayOf(trimmed),
+            null, null, null
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                return it.getInt(0)
+            }
+        }
+        return null
+    }
+
     fun getAllExercises(): List<Exercise> {
         val list = mutableListOf<Exercise>()
         val cursor = readableDatabase.query(TABLE_EXERCISES, arrayOf("id", "name"), null, null, null, null, "name COLLATE NOCASE ASC")
@@ -681,6 +698,33 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         cursor.close()
         
         return if (entryId != -1L) getSetsForEntry(entryId) else emptyList()
+    }
+
+    fun getLatestWorkoutEntryForExercise(exerciseId: Int, beforeDate: String): WorkoutEntry? {
+        val query = """
+            SELECT e.id as entry_id, e.session_id, ex.id as ex_id, ex.name, s.date
+            FROM $TABLE_WORKOUT_ENTRIES e
+            JOIN $TABLE_WORKOUT_SESSIONS s ON e.session_id = s.id
+            JOIN $TABLE_EXERCISES ex ON e.exercise_id = ex.id
+            WHERE e.exercise_id = ? AND s.date < ?
+            ORDER BY s.date DESC, e.id DESC LIMIT 1
+        """.trimIndent()
+        
+        val cursor = readableDatabase.rawQuery(query, arrayOf(exerciseId.toString(), beforeDate))
+        cursor.use {
+            if (it.moveToFirst()) {
+                val entryId = it.getLong(it.getColumnIndexOrThrow("entry_id"))
+                return WorkoutEntry(
+                    id = entryId,
+                    sessionId = it.getLong(it.getColumnIndexOrThrow("session_id")),
+                    exerciseId = it.getInt(it.getColumnIndexOrThrow("ex_id")),
+                    exerciseName = it.getString(it.getColumnIndexOrThrow("name")),
+                    date = it.getString(it.getColumnIndexOrThrow("date")),
+                    sets = getSetsForEntry(entryId)
+                )
+            }
+        }
+        return null
     }
 
     fun getRecentWorkouts(limit: Int): List<Pair<WorkoutEntry, String>> {

@@ -19,8 +19,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.workouttracker.data.DaySummary
+import com.example.workouttracker.ui.components.FitCard
 import com.example.workouttracker.ui.theme.*
 import com.example.workouttracker.viewmodel.AppViewModel
+import androidx.compose.foundation.shape.CircleShape
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 

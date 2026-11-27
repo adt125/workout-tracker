@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -83,6 +84,7 @@ import java.util.Locale
 fun HistoryScreen(
     viewModel: AppViewModel,
     onNavigateDayLog: (String) -> Unit,
+    onNavigateAddWorkoutForDate: (String) -> Unit,
     onBack: () -> Unit
 ) {
     val formatter = DateTimeFormatter.ISO_LOCAL_DATE
@@ -293,12 +295,32 @@ fun HistoryScreen(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold
                     )
-                    Text(
-                        text = "${summary.workouts.size} exercises",
-                        color = TextLo,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "${summary.workouts.size} exercises",
+                            color = TextLo,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(MintAccent.copy(alpha = 0.15f))
+                                .clickable { onNavigateAddWorkoutForDate(summary.date) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add workout for this day",
+                                tint = MintAccent,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

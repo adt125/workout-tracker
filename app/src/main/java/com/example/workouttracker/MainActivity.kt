@@ -123,8 +123,12 @@ fun AppNav(viewModel: AppViewModel) {
                         onBack = { navController.popBackStack() }
                     )
                 }
-                composable("add_workout") {
-                    AddWorkoutScreen(viewModel, onDone = { navController.popBackStack() })
+                composable(
+                    route = "add_workout?date={date}",
+                    arguments = listOf(navArgument("date") { type = NavType.StringType; nullable = true; defaultValue = null })
+                ) { backStackEntry ->
+                    val date = backStackEntry.arguments?.getString("date")
+                    AddWorkoutScreen(viewModel, date = date, onDone = { navController.popBackStack() })
                 }
                 composable(
                     route = "edit_workout/{entryId}",
@@ -137,10 +141,19 @@ fun AppNav(viewModel: AppViewModel) {
                     ReportScreen(viewModel, onBack = { navController.popBackStack() })
                 }
                 composable("this_week") {
-                    ThisWeekScreen(viewModel, onNavigateDayLog = { date -> navController.navigate("day_log/$date") }, onBack = { navController.popBackStack() })
+                    ThisWeekScreen(
+                        viewModel = viewModel,
+                        onNavigateDayLog = { date -> navController.navigate("day_log/$date") },
+                        onBack = { navController.popBackStack() }
+                    )
                 }
                 composable("history") {
-                    HistoryScreen(viewModel, onNavigateDayLog = { date -> navController.navigate("day_log/$date") }, onBack = { navController.popBackStack() })
+                    HistoryScreen(
+                        viewModel = viewModel,
+                        onNavigateDayLog = { date -> navController.navigate("day_log/$date") },
+                        onNavigateAddWorkoutForDate = { date -> navController.navigate("add_workout?date=$date") },
+                        onBack = { navController.popBackStack() }
+                    )
                 }
                 composable(
                     route = "day_log/{date}",
@@ -151,7 +164,8 @@ fun AppNav(viewModel: AppViewModel) {
                         viewModel = viewModel,
                         date = date,
                         onBack = { navController.popBackStack() },
-                        onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") }
+                        onNavigateEditWorkout = { entryId -> navController.navigate("edit_workout/$entryId") },
+                        onNavigateAddWorkout = { d -> navController.navigate("add_workout?date=$d") }
                     )
                 }
             }

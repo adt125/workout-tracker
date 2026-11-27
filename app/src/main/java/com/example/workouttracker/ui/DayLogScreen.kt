@@ -10,7 +10,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.workouttracker.ui.components.FitCard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,7 +41,7 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNavigateEditWorkout: (Long) -> Unit) {
+fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNavigateEditWorkout: (Long) -> Unit, onNavigateAddWorkout: (String) -> Unit) {
     val workouts by viewModel.dayWorkoutsList
     val dayMetrics by viewModel.dayMetrics
     val dayNotes by viewModel.dayNotes
@@ -169,7 +171,39 @@ fun DayLogScreen(viewModel: AppViewModel, date: String, onBack: () -> Unit, onNa
             }
             
             item {
-                Spacer(modifier = Modifier.height(100.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+
+        // Sticky Bottom Card
+        FitCard(
+            onClick = { onNavigateAddWorkout(date) },
+            cornerRadius = 16.dp,
+            padding = PaddingValues(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Forgot to log a workout?", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("Add workout for this day", color = MutedText, fontSize = 12.sp)
+                }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MintAccent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = Ground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

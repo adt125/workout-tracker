@@ -30,22 +30,43 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.ui.draw.rotate
 import com.example.workouttracker.data.SetRecord
+import com.example.workouttracker.data.WorkoutEntry
 import com.example.workouttracker.ui.components.FitCard
 import com.example.workouttracker.ui.components.LabelText
 import com.example.workouttracker.ui.components.PrimaryButton
 import com.example.workouttracker.ui.theme.*
+import com.example.workouttracker.util.formatWeight
 import com.example.workouttracker.viewmodel.AppViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+import androidx.compose.ui.unit.em
 
 @Composable
-fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () -> Unit) {
+fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, date: String? = null, onDone: () -> Unit) {
     var selectedTab by remember { mutableStateOf("Weights") }
     var exerciseName by remember { mutableStateOf("") }
     var weightUnit by remember { mutableStateOf("kg") }
     var isDropdownVisible by remember { mutableStateOf(false) }
-    var workoutDate by remember { mutableStateOf(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
+    var workoutDate by remember { mutableStateOf(date ?: LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)) }
+
+    var lastWorkoutEntry by remember { mutableStateOf<WorkoutEntry?>(null) }
+    var isLastTimeExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(exerciseName, workoutDate) {
+        if (exerciseName.isNotBlank()) {
+            lastWorkoutEntry = viewModel.getLatestWorkoutEntryForExercise(exerciseName, workoutDate)
+            isLastTimeExpanded = false
+        } else {
+            lastWorkoutEntry = null
+            isLastTimeExpanded = false
+        }
+    }
 
     // Cardio specific states
     var duration by remember { mutableStateOf("") }
@@ -273,6 +294,134 @@ fun AddWorkoutScreen(viewModel: AppViewModel, entryId: Long? = null, onDone: () 
                                     DropdownItem("View all exercises", color = MintAccent) {
                                         isDropdownVisible = false
                                         showAllExercisesDialog = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            val entry = lastWorkoutEntry
+            if (entry != null && entry.sets.isNotEmpty()) {
+                val formattedDate = try {
+                    LocalDate.parse(entry.date).format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.US))
+                } catch (_: Exception) {
+                    entry.date
+                }
+
+                val collapsedSetsText = entry.sets.joinToString(" · ") { record ->
+                    if (record.weight != null && record.reps != null) {
+                        "${formatWeight(record.weight.toDouble())}×${record.reps}"
+                    } else if (record.duration != null) {
+                        "${record.duration} min"
+                    } else {
+                        "-"
+                    }
+                }
+
+                val chevronRotation by animateFloatAsState(
+                    targetValue = if (isLastTimeExpanded) 90f else 0f,
+                    animationSpec = tween(durationMillis = 220),
+                    label = "last time chevron rotation"
+                )
+
+                FitCard(
+                    onClick = { isLastTimeExpanded = !isLastTimeExpanded },
+                    padding = PaddingValues(14.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Last time",
+                                    color = TextLo,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "·",
+                                    color = TextLo,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = formattedDate,
+                                    color = TextHi,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = if (isLastTimeExpanded) "Collapse" else "Expand",
+                                tint = TextLo,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .rotate(chevronRotation)
+                            )
+                        }
+
+                        Text(
+                            text = collapsedSetsText,
+                            color = TextHi,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        AnimatedVisibility(
+                            visible = isLastTimeExpanded,
+                            enter = expandVertically(animationSpec = tween(250)) + fadeIn(animationSpec = tween(180)),
+                            exit = shrinkVertically(animationSpec = tween(220)) + fadeOut(animationSpec = tween(120))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Raised)
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "SETS DETAIL",
+                                    color = TextLo,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.08.em
+                                )
+
+                                entry.sets.forEachIndexed { idx, record ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "Set ${idx + 1}",
+                                            color = TextLo,
+                                            fontSize = 13.sp
+                                        )
+                                        val recordText = if (record.weight != null && record.reps != null) {
+                                            "${formatWeight(record.weight.toDouble())} kg × ${record.reps}"
+                                        } else if (record.duration != null) {
+                                            "${record.duration} min"
+                                        } else {
+                                            "-"
+                                        }
+                                        Text(
+                                            text = recordText,
+                                            color = TextHi,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
                             }
